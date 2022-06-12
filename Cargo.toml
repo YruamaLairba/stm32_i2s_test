@@ -2,6 +2,7 @@
 
 members = [
     "transfer",
+    "driver",
 ]
 
 [patch.crates-io]

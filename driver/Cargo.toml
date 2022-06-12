@@ -1,0 +1,13 @@
+[package]
+name = "stm32_i2s_test_driver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rtt-target = { version = "0.3.1", features = ["cortex-m"] }
+cortex-m = "0.7.4"
+cortex-m-rt = "0.7"
+
+[dependencies.stm32f4xx-hal]
+version = "0.13.1"
+features = ["stm32f411", "i2s"]
