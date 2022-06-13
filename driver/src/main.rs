@@ -49,14 +49,14 @@ mod app {
         (0xB000C000u32 as _, 0xD000E000u32 as _),
         (0x01234567u32 as _, 0x89ABCDEFu32 as _),
     ];
-    pub enum MasterDriver<I, STD> {
-        Transmit(I2sDriver<I, Master, Transmit, STD>),
-        Receive(I2sDriver<I, Master, Receive, STD>),
+    pub enum TransmitDriver<I, STD> {
+        Master(I2sDriver<I, Master, Transmit, STD>),
+        Slave(I2sDriver<I, Slave, Transmit, STD>),
     }
 
-    pub enum SlaveDriver<I, STD> {
-        Transmit(I2sDriver<I, Slave, Transmit, STD>),
-        Receive(I2sDriver<I, Slave, Receive, STD>),
+    pub enum ReceiveDriver<I, STD> {
+        Master(I2sDriver<I, Master, Receive, STD>),
+        Slave(I2sDriver<I, Slave, Receive, STD>),
     }
 
     pub type I2s2 = I2s<
@@ -235,8 +235,8 @@ mod app {
         //let i2s2_ctl_p = cx.local.i2s2_ctl_p;
         //let i2s3_ctl_p = cx.local.i2s3_ctl_p;
         let mut i2s2_driver = cx.shared.i2s2_driver;
-        let i2s3_driver = cx.shared.i2s3_driver;
-        let exti = cx.shared.exti;
+        let mut i2s3_driver = cx.shared.i2s3_driver;
+        let mut exti = cx.shared.exti;
         let mut res_32 = [(0, (0, 0)); 7];
 
         rprintln!(
@@ -248,7 +248,7 @@ mod app {
         }
         rprintln!("{} Start i2s2 and i2s3", DWT::cycle_count());
         i2s2_driver.lock(|i2s2_driver| i2s2_driver.enable());
-        (exti, i2s3_driver).lock(|exti, i2s3_driver| {
+        (&mut exti, &mut i2s3_driver).lock(|exti, i2s3_driver| {
             let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.enable_interrupt(exti);
         });
@@ -256,6 +256,7 @@ mod app {
         //block until it's full
         while i2s2_data_c.len() < i2s2_data_c.capacity() {}
         i2s2_driver.lock(|i2s2_driver| i2s2_driver.disable());
+        i2s3_driver.lock(|i2s3_driver| i2s3_driver.disable());
 
         for e in res_32.iter_mut() {
             *e = i2s2_data_c.dequeue().unwrap_or_default();
@@ -425,6 +426,24 @@ mod app {
                 ws_pin.disable_interrupt(exti);
                 i2s3_driver.write_data_register(0);
                 i2s3_driver.enable();
+            }
+        });
+    }
+
+    // Look i2s2 WS line for (re) synchronisation
+    #[task(priority = 4, binds = EXTI15_10, shared = [i2s2_driver,exti])]
+    fn exti15_10(cx: exti15_10::Context) {
+        let i2s2_driver = cx.shared.i2s2_driver;
+        let exti = cx.shared.exti;
+        (exti, i2s2_driver).lock(|exti, i2s2_driver| {
+            let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+            ws_pin.clear_interrupt_pending_bit();
+            // yes, in this case we already know that pin is high, but some other exti can be triggered
+            // by several pins
+            if ws_pin.is_high() {
+                ws_pin.disable_interrupt(exti);
+                //i2s2_driver.write_data_register(0);
+                i2s2_driver.enable();
             }
         });
     }
