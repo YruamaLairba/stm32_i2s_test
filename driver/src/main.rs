@@ -31,7 +31,7 @@ mod app {
     use hal::gpio::{NoPin, Pin};
     use hal::i2s::stm32_i2s_v12x::driver::*;
     use hal::i2s::I2s;
-    use hal::pac::{DCB, DWT};
+    use hal::pac::DWT;
     use hal::pac::{EXTI, SPI2, SPI3};
     use hal::prelude::*;
 
@@ -182,7 +182,7 @@ mod app {
             .standard(Philips)
             .data_format(DataFormat::Data32Channel32)
             .master_clock(true)
-            .request_frequency(48_000);
+            .request_frequency(1);
         let mut i2s2_driver = I2sDriver::new(i2s2, i2s2_config);
         rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
         i2s2_driver.set_rx_interrupt(true);
@@ -201,7 +201,6 @@ mod app {
         ws_pin.make_interrupt_source(&mut syscfg);
         ws_pin.trigger_on_edge(&mut exti, Edge::Rising);
         // we will enable i2s3 in interrupt
-        ws_pin.enable_interrupt(&mut exti);
 
         //i2s2_driver.enable();
 
@@ -227,21 +226,32 @@ mod app {
     }
 
     #[idle(
-        shared = [i2s2_driver, i2s3_driver],
+        shared = [i2s2_driver, i2s3_driver,exti],
         local = [i2s2_data_c, i2s3_data_p, i2s2_ctl_p, i2s3_ctl_p]
     )]
     fn idle(cx: idle::Context) -> ! {
         let i2s2_data_c = cx.local.i2s2_data_c;
         let i2s3_data_p = cx.local.i2s3_data_p;
-        let i2s2_ctl_p = cx.local.i2s2_ctl_p;
-        let i2s3_ctl_p = cx.local.i2s3_ctl_p;
+        //let i2s2_ctl_p = cx.local.i2s2_ctl_p;
+        //let i2s3_ctl_p = cx.local.i2s3_ctl_p;
         let mut i2s2_driver = cx.shared.i2s2_driver;
+        let i2s3_driver = cx.shared.i2s3_driver;
+        let exti = cx.shared.exti;
         let mut res_32 = [(0, (0, 0)); 7];
 
+        rprintln!(
+            "--- {} Master Receive + Slave transmit driver (interrupt)",
+            DWT::cycle_count()
+        );
         for e in FRM_32 {
             i2s3_data_p.enqueue(*e).ok();
         }
+        rprintln!("{} Start i2s2 and i2s3", DWT::cycle_count());
         i2s2_driver.lock(|i2s2_driver| i2s2_driver.enable());
+        (exti, i2s3_driver).lock(|exti, i2s3_driver| {
+            let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+            ws_pin.enable_interrupt(exti);
+        });
 
         //block until it's full
         while i2s2_data_c.len() < i2s2_data_c.capacity() {}
@@ -253,7 +263,14 @@ mod app {
 
         for (e, r) in FRM_32.iter().zip(res_32.iter()) {
             let (t, r) = r;
-            rprintln!("{:08x} {:08x}, {:10} {:08x} {:08x}", e.0, e.1, t, r.0, r.1);
+            rprintln!(
+                "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
+                e.0,
+                e.1,
+                t,
+                r.0,
+                r.1
+            );
         }
 
         #[allow(clippy::empty_loop)]
@@ -308,16 +325,15 @@ mod app {
                             .ok();
                         if !i2s2_data_p.ready() {
                             i2s2_driver.disable();
-                            rprintln!(
-                                "{} {} master receive stopped",
-                                DWT::cycle_count(),
-                                i2s2_data_p.len()
-                            );
+                            rprintln!("{} master receive stopped", DWT::cycle_count(),);
                         }
                         *frame_state = LeftMsb;
                     }
                     // in case of ovr this resynchronize at start of new frame
-                    _ => *frame_state = LeftMsb,
+                    _ => {
+                        log::spawn(DWT::cycle_count(), "i2s2 Channel Err").ok();
+                        *frame_state = LeftMsb;
+                    }
                 }
             }
             if status.ovr() {
