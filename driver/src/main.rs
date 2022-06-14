@@ -245,6 +245,16 @@ mod app {
             i2s3,
         );
 
+        let (i2s2, i2s3) = test::master_receive_slave_transmit_driver_interrupt(
+            &mut shared_exti,
+            &mut shared_i2s2_driver,
+            &mut shared_i2s3_driver,
+            i2s2_data_c,
+            i2s3_data_p,
+            i2s2,
+            i2s3,
+        );
+
         #[allow(clippy::empty_loop)]
         loop {}
     }
