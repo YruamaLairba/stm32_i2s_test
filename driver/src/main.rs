@@ -399,19 +399,16 @@ mod app {
         let i2s3_driver = cx.shared.i2s3_driver;
         let exti = cx.shared.exti;
         (exti, i2s3_driver).lock(|exti, i2s3_driver| {
-            match i2s3_driver {
-                Some(TransmitDriver::Slave(i2s3_driver)) => {
-                    let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
-                    ws_pin.clear_interrupt_pending_bit();
-                    // yes, in this case we already know that pin is high, but some other exti can be triggered
-                    // by several pins
-                    if ws_pin.is_high() {
-                        ws_pin.disable_interrupt(exti);
-                        i2s3_driver.write_data_register(0);
-                        i2s3_driver.enable();
-                    }
+            if let Some(TransmitDriver::Slave(i2s3_driver)) = i2s3_driver {
+                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+                ws_pin.clear_interrupt_pending_bit();
+                // yes, in this case we already know that pin is high, but some other exti can be triggered
+                // by several pins
+                if ws_pin.is_high() {
+                    ws_pin.disable_interrupt(exti);
+                    i2s3_driver.write_data_register(0);
+                    i2s3_driver.enable();
                 }
-                _ => (),
             }
         });
     }
@@ -422,19 +419,16 @@ mod app {
         let i2s2_driver = cx.shared.i2s2_driver;
         let exti = cx.shared.exti;
         (exti, i2s2_driver).lock(|exti, i2s2_driver| {
-            match i2s2_driver {
-                Some(ReceiveDriver::Slave(i2s2_driver)) => {
-                    let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
-                    ws_pin.clear_interrupt_pending_bit();
-                    // yes, in this case we already know that pin is high, but some other exti can be triggered
-                    // by several pins
-                    if ws_pin.is_high() {
-                        ws_pin.disable_interrupt(exti);
-                        //i2s2_driver.write_data_register(0);
-                        i2s2_driver.enable();
-                    }
+            if let Some(ReceiveDriver::Slave(i2s2_driver)) = i2s2_driver {
+                let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+                ws_pin.clear_interrupt_pending_bit();
+                // yes, in this case we already know that pin is high, but some other exti can be triggered
+                // by several pins
+                if ws_pin.is_high() {
+                    ws_pin.disable_interrupt(exti);
+                    //i2s2_driver.write_data_register(0);
+                    i2s2_driver.enable();
                 }
-                _ => (),
             }
         });
     }
