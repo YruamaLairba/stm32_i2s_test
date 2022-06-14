@@ -27,9 +27,6 @@ mod app {
 
     use super::hal;
 
-    use hal::gpio::gpioa::*;
-    use hal::gpio::gpiob::*;
-    use hal::gpio::gpioc::*;
     use hal::gpio::Edge;
     use hal::gpio::{NoPin, Pin};
     use hal::i2s::stm32_i2s_v12x::driver::*;
@@ -188,16 +185,6 @@ mod app {
         i2s2_pins.0.make_interrupt_source(&mut syscfg);
         i2s2_pins.0.trigger_on_edge(&mut exti, Edge::Rising);
         let i2s2 = Some(I2s::new(device.SPI2, i2s2_pins, &clocks));
-        //let i2s2_config = I2sDriverConfig::new_master()
-        //    .receive()
-        //    .standard(Philips)
-        //    .data_format(DataFormat::Data32Channel32)
-        //    .master_clock(true)
-        //    .request_frequency(1);
-        //let mut i2s2_driver = I2sDriver::new(i2s2, i2s2_config);
-        //rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
-        //i2s2_driver.set_rx_interrupt(true);
-        //i2s2_driver.set_error_interrupt(true);
 
         // I2S3 pins: (WS, CK, NoPin, SD) for I2S3
         let mut i2s3_pins = (gpioa.pa4, gpioc.pc10, NoPin, gpioc.pc12);
@@ -205,16 +192,6 @@ mod app {
         i2s3_pins.0.make_interrupt_source(&mut syscfg);
         i2s3_pins.0.trigger_on_edge(&mut exti, Edge::Rising);
         let i2s3 = Some(I2s::new(device.SPI3, i2s3_pins, &clocks));
-        //let i2s3_config = i2s2_config.to_slave().transmit();
-        //let mut i2s3_driver = I2sDriver::new(i2s3, i2s3_config);
-        //i2s3_driver.set_tx_interrupt(true);
-        //i2s3_driver.set_error_interrupt(true);
-
-        // set up an interrupt on WS pin
-        //let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
-        //ws_pin.make_interrupt_source(&mut syscfg);
-        //ws_pin.trigger_on_edge(&mut exti, Edge::Rising);
-        // we will enable i2s3 in interrupt
 
         //i2s2_driver.enable();
         let i2s2_driver = None; //Some(ReceiveDriver::Master(i2s2_driver));
