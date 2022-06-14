@@ -263,13 +263,14 @@ mod app {
             frame: (u32, u32) = (0, 0), i2s2_data_p,
             i2s2_ctl_c
         ],
-        shared = [i2s2_driver]
+        shared = [i2s2_driver,exti]
     )]
     fn i2s2(cx: i2s2::Context) {
         let frame_state = cx.local.frame_state;
         let frame = cx.local.frame;
         let i2s2_data_p = cx.local.i2s2_data_p;
         let mut i2s2_driver = cx.shared.i2s2_driver;
+        let mut exti = cx.shared.exti;
         i2s2_driver.lock(|i2s2_driver| {
             match i2s2_driver {
                 Some(ReceiveDriver::Master(i2s2_driver)) => {
@@ -309,6 +310,61 @@ mod app {
                                 *frame_state = LeftMsb;
                             }
                         }
+                    }
+                    if status.ovr() {
+                        log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
+                        // sequence to delete ovr flag
+                        i2s2_driver.read_data_register();
+                        i2s2_driver.status();
+                    }
+                }
+                Some(ReceiveDriver::Slave(i2s2_driver)) => {
+                    let status = i2s2_driver.status();
+                    // It's better to read first to avoid triggering ovr flag
+                    if status.rxne() {
+                        let data = i2s2_driver.read_data_register();
+                        match (*frame_state, status.chside()) {
+                            (LeftMsb, Channel::Left) => {
+                                frame.0 = (data as u32) << 16;
+                                *frame_state = LeftLsb;
+                            }
+                            (LeftLsb, Channel::Left) => {
+                                frame.0 |= data as u32;
+                                *frame_state = RightMsb;
+                            }
+                            (RightMsb, Channel::Right) => {
+                                frame.1 = (data as u32) << 16;
+                                *frame_state = RightLsb;
+                            }
+                            (RightLsb, Channel::Right) => {
+                                frame.1 |= data as u32;
+                                // defer sample processing to another task
+                                let (l, r) = *frame;
+                                i2s2_data_p
+                                    .enqueue((DWT::cycle_count(), (l as i32, r as i32)))
+                                    .ok();
+                                if !i2s2_data_p.ready() {
+                                    i2s2_driver.disable();
+                                    rprintln!("{} master receive stopped", DWT::cycle_count(),);
+                                }
+                                *frame_state = LeftMsb;
+                            }
+                            // in case of ovr this resynchronize at start of new frame
+                            _ => {
+                                log::spawn(DWT::cycle_count(), "i2s2 Channel Err").ok();
+                                *frame_state = LeftMsb;
+                            }
+                        }
+                    }
+                    if status.fre() {
+                        log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
+                        i2s2_driver.disable();
+                        exti.lock(|exti| {
+                            i2s2_driver
+                                .i2s_peripheral_mut()
+                                .ws_pin_mut()
+                                .enable_interrupt(exti)
+                        })
                     }
                     if status.ovr() {
                         log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
@@ -386,6 +442,39 @@ mod app {
                         log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
                         i2s3_driver.status();
                         i2s3_driver.write_data_register(0);
+                    }
+                }
+                Some(TransmitDriver::Master(i2s3_driver)) => {
+                    let status = i2s3_driver.status();
+                    // it's better to write data first to avoid to trigger udr flag
+                    if status.txe() {
+                        let data;
+                        match (*frame_state, status.chside()) {
+                            (LeftMsb, Channel::Left) => {
+                                let (l, r) = i2s3_data_c.dequeue().unwrap_or_default();
+                                *frame = (l as u32, r as u32);
+                                data = (frame.0 >> 16) as u16;
+                                *frame_state = LeftLsb;
+                            }
+                            (LeftLsb, Channel::Left) => {
+                                data = (frame.0 & 0xFFFF) as u16;
+                                *frame_state = RightMsb;
+                            }
+                            (RightMsb, Channel::Right) => {
+                                data = (frame.1 >> 16) as u16;
+                                *frame_state = RightLsb;
+                            }
+                            (RightLsb, Channel::Right) => {
+                                data = (frame.1 & 0xFFFF) as u16;
+                                *frame_state = LeftMsb;
+                            }
+                            // in case of udr this resynchronize tracked and actual channel
+                            _ => {
+                                *frame_state = LeftMsb;
+                                data = 0; //garbage data to avoid additional underrrun
+                            }
+                        }
+                        i2s3_driver.write_data_register(data);
                     }
                 }
                 _ => (),
