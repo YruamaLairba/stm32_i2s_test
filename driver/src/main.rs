@@ -257,6 +257,7 @@ mod app {
         let mut shared_i2s2_driver = cx.shared.i2s2_driver;
         let mut shared_i2s3_driver = cx.shared.i2s3_driver;
         let mut shared_exti = cx.shared.exti;
+
         let (i2s2, i2s3) = test::master_receive_slave_transmit_driver_interrupt(
             &mut shared_exti,
             &mut shared_i2s2_driver,
@@ -266,77 +267,6 @@ mod app {
             i2s2,
             i2s3,
         );
-
-        let mut res_32 = [(0, (0, 0)); 7];
-
-        rprintln!(
-            "--- {} Master Receive + Slave transmit driver (interrupt)",
-            DWT::cycle_count()
-        );
-        let mut i2s2_driver = I2sDriverConfig::new_master()
-            .receive()
-            .standard(Philips)
-            .data_format(DataFormat::Data32Channel32)
-            .master_clock(true)
-            .request_frequency(1)
-            .i2s_driver(i2s2);
-        rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
-        i2s2_driver.set_rx_interrupt(true);
-        i2s2_driver.set_error_interrupt(true);
-        for e in FRM_32 {
-            i2s3_data_p.enqueue(*e).ok();
-        }
-        rprintln!("{} Start i2s2 and i2s3", DWT::cycle_count());
-
-        let mut i2s3_driver = I2sDriverConfig::new_slave()
-            .transmit()
-            .standard(Philips)
-            .data_format(DataFormat::Data32Channel32)
-            .i2s_driver(i2s3);
-        i2s3_driver.set_tx_interrupt(true);
-        i2s3_driver.set_error_interrupt(true);
-
-        (
-            &mut shared_exti,
-            &mut shared_i2s2_driver,
-            &mut shared_i2s3_driver,
-        )
-            .lock(|exti, shared_i2s2_driver, shared_i2s3_driver| {
-                i2s2_driver.enable();
-                *shared_i2s2_driver = Some(ReceiveDriver::Master(i2s2_driver));
-                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
-                ws_pin.enable_interrupt(exti);
-                *shared_i2s3_driver = Some(TransmitDriver::Slave(i2s3_driver));
-            });
-
-        //block until it's full
-        while i2s2_data_c.len() < i2s2_data_c.capacity() {}
-        shared_i2s2_driver.lock(|i2s2_driver| {
-            if let Some(ReceiveDriver::Master(i2s2_driver)) = i2s2_driver {
-                i2s2_driver.disable();
-            }
-        });
-        shared_i2s3_driver.lock(|i2s3_driver| {
-            if let Some(TransmitDriver::Slave(i2s3_driver)) = i2s3_driver {
-                i2s3_driver.disable();
-            }
-        });
-
-        for e in res_32.iter_mut() {
-            *e = i2s2_data_c.dequeue().unwrap_or_default();
-        }
-
-        for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-            let (t, r) = r;
-            rprintln!(
-                "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-                e.0,
-                e.1,
-                t,
-                r.0,
-                r.1
-            );
-        }
 
         #[allow(clippy::empty_loop)]
         loop {}
