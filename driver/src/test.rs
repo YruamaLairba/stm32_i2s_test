@@ -1,8 +1,5 @@
 //! Contains test to be done
 
-use crate::app::exti_that_needs_to_be_locked;
-use crate::app::i2s2_driver_that_needs_to_be_locked;
-use crate::app::i2s3_driver_that_needs_to_be_locked;
 use crate::app::{I2s2, I2s3};
 use crate::app::{ReceiveDriver, TransmitDriver};
 use heapless::spsc::*;
@@ -14,7 +11,7 @@ use hal::gpio::ExtiPin;
 use hal::i2s::stm32_i2s_v12x::driver::{DataFormat, *};
 use hal::i2s::stm32_i2s_v12x::transfer::*;
 use hal::pac::DWT;
-use hal::pac::{RCC, SPI2, SPI3};
+use hal::pac::{EXTI, RCC, SPI2, SPI3};
 use hal::rcc::Reset;
 
 use rtic::mutex::prelude::*;
@@ -31,9 +28,9 @@ const FRM_32: &[(i32, i32)] = &[
 ];
 
 pub fn master_receive_slave_transmit_driver_interrupt(
-    mut shared_exti: &mut exti_that_needs_to_be_locked,
-    mut shared_i2s2_driver: &mut i2s2_driver_that_needs_to_be_locked,
-    mut shared_i2s3_driver: &mut i2s3_driver_that_needs_to_be_locked,
+    mut shared_exti: &mut impl Mutex<T = EXTI>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
+    mut shared_i2s3_driver: &mut impl Mutex<T = Option<TransmitDriver<I2s3, Philips>>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,
     i2s2: I2s2,
@@ -137,9 +134,9 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 }
 
 pub fn slave_receive_master_transmit_driver_interrupt(
-    mut shared_exti: &mut exti_that_needs_to_be_locked,
-    mut shared_i2s2_driver: &mut i2s2_driver_that_needs_to_be_locked,
-    mut shared_i2s3_driver: &mut i2s3_driver_that_needs_to_be_locked,
+    mut shared_exti: &mut impl Mutex<T = EXTI>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
+    mut shared_i2s3_driver: &mut impl Mutex<T = Option<TransmitDriver<I2s3, Philips>>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,
     i2s2: I2s2,
@@ -245,8 +242,8 @@ pub fn slave_receive_master_transmit_driver_interrupt(
 }
 
 pub fn slave_receive_driver_master_transmit_transfer_block(
-    mut shared_exti: &mut exti_that_needs_to_be_locked,
-    mut shared_i2s2_driver: &mut i2s2_driver_that_needs_to_be_locked,
+    mut shared_exti: &mut impl Mutex<T = EXTI>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s2: I2s2,
     i2s3: I2s3,
@@ -338,8 +335,8 @@ pub fn slave_receive_driver_master_transmit_transfer_block(
 }
 
 pub fn slave_receive_driver_master_transmit_transfer_nb(
-    mut shared_exti: &mut exti_that_needs_to_be_locked,
-    mut shared_i2s2_driver: &mut i2s2_driver_that_needs_to_be_locked,
+    mut shared_exti: &mut impl Mutex<T = EXTI>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s2: I2s2,
     i2s3: I2s3,
