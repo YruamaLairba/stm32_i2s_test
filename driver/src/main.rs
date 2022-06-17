@@ -15,6 +15,7 @@ use rtt_target::rprintln;
 use stm32f4xx_hal as hal;
 
 pub mod test;
+pub mod driver_wrap;
 
 #[rtic::app(
     device = stm32f4xx_hal::pac,
