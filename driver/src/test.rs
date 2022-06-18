@@ -42,8 +42,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     let mut res_32 = [(0, (0, 0)); 7];
 
     rprintln!(
-        "--- {} Master Receive + Slave Transmit driver (interrupt)",
-        DWT::cycle_count()
+        "--- Master Receive + Slave Transmit driver 32 bits with interrupt"
     );
 
     // Set up drivers
@@ -148,8 +147,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     let mut res_32 = [(0, (0, 0)); 7];
 
     rprintln!(
-        "--- {} Slave Receive + Master Transmit driver (interrupt)",
-        DWT::cycle_count()
+        "--- Slave Receive + Master Transmit driver 32 bits with interrupt"
     );
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
@@ -253,7 +251,7 @@ pub fn master_transmit_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive driver + Master Transmit transfer (block)");
+    rprintln!("--- Master Transmit Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -346,7 +344,7 @@ pub fn master_transmit_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive driver + Master Transmit transfer (nb)");
+    rprintln!("--- Master Transmit Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -440,7 +438,7 @@ pub fn slave_transmit_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive driver + Slave Transmit transfer (block)");
+    rprintln!("--- Slave Transmit Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -529,7 +527,7 @@ pub fn slave_transmit_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive driver + Slave Transmit transfer (nb)");
+    rprintln!("--- Slave Transmit Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -621,7 +619,7 @@ pub fn master_receive_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive Transfer block + Slave Transmit Driver");
+    rprintln!("--- Master Receive Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -718,7 +716,7 @@ pub fn master_receive_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive Transfer nb");
+    rprintln!("--- Master Receive Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -815,7 +813,7 @@ pub fn slave_receive_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive Transfer block");
+    rprintln!("--- Slave Receive Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -909,7 +907,7 @@ pub fn slave_receive_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive Transfer nb");
+    rprintln!("--- Slave Receive Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
