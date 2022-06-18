@@ -39,6 +39,61 @@ pub struct DriverWrap<I> {
     frame: (u32, u32),
 }
 
+fn _slave_transmit_32bits_interrupt(
+    driver: &mut I2sDriver<I2s3, Slave, Transmit, I2sStd>,
+    exti: &mut impl Mutex<T = EXTI>,
+    frame_state: &mut FrameState,
+    frame: &mut (u32, u32),
+    data_c: &mut Consumer<'static, (i32, i32), 8>,
+) {
+    let status = driver.status();
+    // it's better to write data first to avoid to trigger udr flag
+    if status.txe() {
+        let data;
+        match (*frame_state, status.chside()) {
+            (LeftMsb, Channel::Left) => {
+                let (l, r) = data_c.dequeue().unwrap_or_default();
+                *frame = (l as u32, r as u32);
+                data = (frame.0 >> 16) as u16;
+                *frame_state = LeftLsb;
+            }
+            (LeftLsb, Channel::Left) => {
+                data = (frame.0 & 0xFFFF) as u16;
+                *frame_state = RightMsb;
+            }
+            (RightMsb, Channel::Right) => {
+                data = (frame.1 >> 16) as u16;
+                *frame_state = RightLsb;
+            }
+            (RightLsb, Channel::Right) => {
+                data = (frame.1 & 0xFFFF) as u16;
+                *frame_state = LeftMsb;
+            }
+            // in case of udr this resynchronize tracked and actual channel
+            _ => {
+                *frame_state = LeftMsb;
+                data = 0; //garbage data to avoid additional underrrun
+            }
+        }
+        driver.write_data_register(data);
+    }
+    if status.fre() {
+        log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
+        driver.disable();
+        exti.lock(|exti| {
+            driver
+                .i2s_peripheral_mut()
+                .ws_pin_mut()
+                .enable_interrupt(exti)
+        })
+    }
+    if status.udr() {
+        log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
+        driver.status();
+        driver.write_data_register(0);
+    }
+}
+
 fn _master_transmit_32bits_interrupt<I: I2sPeripheral>(
     driver: &mut I2sDriver<I, Master, Transmit, I2sStd>,
     frame_state: &mut FrameState,
@@ -202,8 +257,18 @@ impl<I: I2sPeripheral> DriverWrap<I> {
 }
 
 impl DriverWrap<I2s3> {
-    pub fn transmit_interrupt_handler(&mut self, data_c: &mut Consumer<'static, (i32, i32), 8>) {
+    pub fn transmit_interrupt_handler(
+        &mut self,
+        exti: &mut impl Mutex<T = EXTI>,
+        data_c: &mut Consumer<'static, (i32, i32), 8>) {
         match self.drv {
+            Some(SlaveTransmit32bits(ref mut drv)) => _slave_transmit_32bits_interrupt(
+                drv,
+                exti,
+                &mut self.frame_state,
+                &mut self.frame,
+                data_c,
+            ),
             Some(MasterTransmit32bits(ref mut drv)) => _master_transmit_32bits_interrupt(
                 drv,
                 &mut self.frame_state,
