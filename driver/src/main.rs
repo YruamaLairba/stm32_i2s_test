@@ -272,6 +272,13 @@ mod app {
             i2s2,
             i2s3,
         );
+
+        let (i2s2, i2s3) = test::master_receive_driver_slave_transmit_transfer_block(
+            &mut shared_i2s2_driver,
+            i2s2_data_c,
+            i2s2,
+            i2s3,
+        );
         #[allow(clippy::empty_loop)]
         loop {}
     }
