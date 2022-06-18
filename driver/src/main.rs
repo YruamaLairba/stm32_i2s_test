@@ -14,9 +14,8 @@ use rtt_target::rprintln;
 
 use stm32f4xx_hal as hal;
 
-pub mod test;
 pub mod driver_wrap;
-
+pub mod test;
 
 #[rtic::app(
     device = stm32f4xx_hal::pac,
@@ -37,8 +36,8 @@ mod app {
     use hal::pac::{EXTI, SPI2, SPI3};
     use hal::prelude::*;
 
+    use super::driver_wrap::{DriverMode::*, *};
     use super::test;
-    use super::driver_wrap::{*,DriverMode::*};
 
     use heapless::spsc::*;
 
@@ -242,7 +241,7 @@ mod app {
             i2s3,
         );
 
-        let (i2s2, i2s3) = test::slave_receive_driver_master_transmit_transfer_block(
+        let (i2s2, i2s3) = test::master_transmit_transfer_block(
             &mut shared_exti,
             &mut shared_i2s2_driver,
             i2s2_data_c,
@@ -250,7 +249,7 @@ mod app {
             i2s3,
         );
 
-        let (i2s2, i2s3) = test::slave_receive_driver_master_transmit_transfer_nb(
+        let (i2s2, i2s3) = test::master_transmit_transfer_nb(
             &mut shared_exti,
             &mut shared_i2s2_driver,
             i2s2_data_c,
@@ -258,22 +257,13 @@ mod app {
             i2s3,
         );
 
-        let (i2s2, i2s3) = test::master_receive_driver_slave_transmit_transfer_block(
-            &mut shared_i2s2_driver,
-            i2s2_data_c,
-            i2s2,
-            i2s3,
-        );
+        let (i2s2, i2s3) =
+            test::slave_transmit_transfer_block(&mut shared_i2s2_driver, i2s2_data_c, i2s2, i2s3);
 
-        let (i2s2, i2s3) = test::master_receive_driver_slave_transmit_transfer_nb(
-            &mut shared_i2s2_driver,
-            i2s2_data_c,
-            i2s2,
-            i2s3,
-        );
+        let (i2s2, i2s3) =
+            test::slave_transmit_transfer_nb(&mut shared_i2s2_driver, i2s2_data_c, i2s2, i2s3);
 
-
-        let (i2s2, i2s3) = test::master_receive_transfer_block_slave_transmit_driver(
+        let (i2s2, i2s3) = test::master_receive_transfer_block(
             &mut shared_exti,
             &mut shared_i2s3_driver,
             i2s3_data_p,
@@ -305,7 +295,7 @@ mod app {
         let mut i2s2_driver = cx.shared.i2s2_driver;
         let mut exti = cx.shared.exti;
         i2s2_driver.lock(|i2s2_driver| {
-            i2s2_driver.receive_interrupt_handler(&mut exti,i2s2_data_p);
+            i2s2_driver.receive_interrupt_handler(&mut exti, i2s2_data_p);
         });
     }
 
@@ -323,7 +313,7 @@ mod app {
         let mut i2s3_driver = cx.shared.i2s3_driver;
         let mut exti = cx.shared.exti;
         i2s3_driver.lock(|i2s3_driver| {
-            i2s3_driver.transmit_interrupt_handler(&mut exti,i2s3_data_c);
+            i2s3_driver.transmit_interrupt_handler(&mut exti, i2s3_data_c);
         })
     }
 
