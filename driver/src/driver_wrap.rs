@@ -256,6 +256,8 @@ impl<I: I2sPeripheral> DriverWrap<I> {
     }
 
     pub fn take(&mut self) -> Option<DriverMode<I>> {
+        self.frame_state = LeftMsb;
+        self.frame = (0,0);
         self.drv.take()
     }
 

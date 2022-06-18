@@ -1,7 +1,6 @@
 //! Contains test to be done
 
 use crate::app::{I2s2, I2s3};
-use crate::app::{ReceiveDriver, TransmitDriver};
 use heapless::spsc::*;
 use rtt_target::rprintln;
 
@@ -34,7 +33,7 @@ const FRM_32: &[(i32, i32)] = &[
 pub fn master_receive_slave_transmit_driver_interrupt(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
-    mut shared_i2s3_driver: &mut impl Mutex<T = Option<TransmitDriver<I2s3, Philips>>>,
+    mut shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,
     i2s2: I2s2,
@@ -84,7 +83,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
             shared_i2s2_driver.replace(MasterReceive32bits(i2s2_driver));
             let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.enable_interrupt(exti);
-            *shared_i2s3_driver = Some(TransmitDriver::Slave(i2s3_driver));
+            shared_i2s3_driver.replace(SlaveTransmit32bits(i2s3_driver));
         });
 
     //block until test finish
@@ -100,7 +99,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
         }
     });
     let i2s3 = (&mut shared_i2s3_driver, &mut shared_exti).lock(|i2s3_driver, exti| {
-        if let Some(TransmitDriver::Slave(mut i2s3_driver)) = i2s3_driver.take() {
+        if let Some(SlaveTransmit32bits(mut i2s3_driver)) = i2s3_driver.take() {
             i2s3_driver.disable();
             let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.disable_interrupt(exti);
@@ -139,8 +138,8 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 
 pub fn slave_receive_master_transmit_driver_interrupt(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
-    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
-    mut shared_i2s3_driver: &mut impl Mutex<T = Option<TransmitDriver<I2s3, Philips>>>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
+    mut shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,
     i2s2: I2s2,
@@ -189,10 +188,10 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     )
         .lock(|exti, shared_i2s2_driver, shared_i2s3_driver| {
             i2s3_driver.enable();
-            *shared_i2s3_driver = Some(TransmitDriver::Master(i2s3_driver));
+            shared_i2s3_driver.replace(MasterTransmit32bits(i2s3_driver));
             let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.enable_interrupt(exti);
-            *shared_i2s2_driver = Some(ReceiveDriver::Slave(i2s2_driver));
+            shared_i2s2_driver.replace(SlaveReceive32bits(i2s2_driver));
         });
 
     //block until test finish
@@ -200,7 +199,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
 
     //disable driver and release
     let i2s2 = (&mut shared_i2s2_driver, &mut shared_exti).lock(|i2s2_driver, exti| {
-        if let Some(ReceiveDriver::Slave(mut i2s2_driver)) = i2s2_driver.take() {
+        if let Some(SlaveReceive32bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
             let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.disable_interrupt(exti);
@@ -210,7 +209,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
         }
     });
     let i2s3 = shared_i2s3_driver.lock(|i2s3_driver| {
-        if let Some(TransmitDriver::Master(mut i2s3_driver)) = i2s3_driver.take() {
+        if let Some(MasterTransmit32bits(mut i2s3_driver)) = i2s3_driver.take() {
             i2s3_driver.disable();
             i2s3_driver.release()
         } else {
@@ -247,7 +246,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
 
 pub fn slave_receive_driver_master_transmit_transfer_block(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
-    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s2: I2s2,
     i2s3: I2s3,
@@ -289,7 +288,7 @@ pub fn slave_receive_driver_master_transmit_transfer_block(
     (&mut shared_exti, &mut shared_i2s2_driver).lock(|exti, shared_i2s2_driver| {
         let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
         ws_pin.enable_interrupt(exti);
-        *shared_i2s2_driver = Some(ReceiveDriver::Slave(i2s2_driver));
+        shared_i2s2_driver.replace(SlaveReceive32bits(i2s2_driver));
     });
 
     //blocking transmit
@@ -301,7 +300,7 @@ pub fn slave_receive_driver_master_transmit_transfer_block(
 
     //disable driver and transfer and release
     let i2s2 = (&mut shared_i2s2_driver, &mut shared_exti).lock(|i2s2_driver, exti| {
-        if let Some(ReceiveDriver::Slave(mut i2s2_driver)) = i2s2_driver.take() {
+        if let Some(SlaveReceive32bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
             let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.disable_interrupt(exti);
@@ -340,7 +339,7 @@ pub fn slave_receive_driver_master_transmit_transfer_block(
 
 pub fn slave_receive_driver_master_transmit_transfer_nb(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
-    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s2: I2s2,
     i2s3: I2s3,
@@ -382,7 +381,7 @@ pub fn slave_receive_driver_master_transmit_transfer_nb(
     (&mut shared_exti, &mut shared_i2s2_driver).lock(|exti, shared_i2s2_driver| {
         let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
         ws_pin.enable_interrupt(exti);
-        *shared_i2s2_driver = Some(ReceiveDriver::Slave(i2s2_driver));
+        shared_i2s2_driver.replace(SlaveReceive32bits(i2s2_driver));
     });
 
     //nb transmit
@@ -396,7 +395,7 @@ pub fn slave_receive_driver_master_transmit_transfer_nb(
 
     //disable driver and transfer and release
     let i2s2 = (&mut shared_i2s2_driver, &mut shared_exti).lock(|i2s2_driver, exti| {
-        if let Some(ReceiveDriver::Slave(mut i2s2_driver)) = i2s2_driver.take() {
+        if let Some(SlaveReceive32bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
             let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.disable_interrupt(exti);
@@ -434,7 +433,7 @@ pub fn slave_receive_driver_master_transmit_transfer_nb(
 }
 
 pub fn master_receive_driver_slave_transmit_transfer_block(
-    shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
+    shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s2: I2s2,
     i2s3: I2s3,
@@ -475,19 +474,111 @@ pub fn master_receive_driver_slave_transmit_transfer_block(
     rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     shared_i2s2_driver.lock(|shared_i2s2_driver| {
         i2s2_driver.enable();
-        *shared_i2s2_driver = Some(ReceiveDriver::Master(i2s2_driver));
+        shared_i2s2_driver.replace(MasterReceive32bits(i2s2_driver));
     });
 
     //blocking transmit
     rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
-    i2s3_transfer.write_iter(FRM_32.iter().copied());
+    i2s3_transfer.write_iter(FRM_32[0..7].iter().copied());
 
     //block until test finish
     //while i2s2_data_c.len() < i2s2_data_c.capacity() {}
 
     //disable driver and transfer and release
     let i2s2 = shared_i2s2_driver.lock(|i2s2_driver| {
-        if let Some(ReceiveDriver::Master(mut i2s2_driver)) = i2s2_driver.take() {
+        if let Some(MasterReceive32bits(mut i2s2_driver)) = i2s2_driver.take() {
+            i2s2_driver.disable();
+            i2s2_driver.release()
+        } else {
+            panic!()
+        }
+    });
+    let i2s3 = i2s3_transfer.release();
+    //reset I2s peripherals
+    unsafe {
+        let rcc = &(*RCC::ptr());
+        SPI2::reset(rcc);
+        SPI3::reset(rcc);
+    }
+
+    // get test result
+    for e in res_32.iter_mut() {
+        *e = i2s2_data_c.dequeue().unwrap_or_default();
+    }
+
+    // display result
+    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
+        let (t, r) = r;
+        rprintln!(
+            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
+            e.0,
+            e.1,
+            t,
+            r.0,
+            r.1
+        );
+    }
+    (i2s2, i2s3)
+}
+
+
+pub fn master_receive_driver_slave_transmit_transfer_nb(
+    shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
+    i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
+    i2s2: I2s2,
+    i2s3: I2s3,
+) -> (I2s2, I2s3) {
+    let mut res_32 = [(0, (0, 0)); 7];
+
+    rprintln!("--- Master Receive driver + Slave Transmit transfer (nb)");
+    let drv_cfg_base = I2sDriverConfig::new_master()
+        .receive()
+        .standard(Philips)
+        .data_format(DataFormat::Data32Channel32)
+        .master_clock(true)
+        .request_frequency(1);
+
+    let transfer_cfg_base = I2sTransferConfig::new_master()
+        .receive()
+        .standard(Philips)
+        .data_format(marker::Data32Channel32)
+        .master_clock(true)
+        .request_frequency(1);
+
+    // reset is2 peripheral
+    unsafe {
+        let rcc = &(*RCC::ptr());
+        SPI2::reset(rcc);
+        SPI3::reset(rcc);
+    }
+
+    // Set up drivers and transfert
+    let mut i2s2_driver = drv_cfg_base.receive().i2s_driver(i2s2);
+    rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
+    i2s2_driver.set_rx_interrupt(true);
+    i2s2_driver.set_error_interrupt(true);
+
+    let mut i2s3_transfer = transfer_cfg_base.to_slave().transmit().i2s_transfer(i2s3);
+
+    // start drivers
+    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
+    shared_i2s2_driver.lock(|shared_i2s2_driver| {
+        i2s2_driver.enable();
+        shared_i2s2_driver.replace(MasterReceive32bits(i2s2_driver));
+    });
+
+    //blocking transmit
+    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
+    for data in FRM_32[0..=7].iter() {
+        while i2s3_transfer.write(*data).is_err() {}
+    }
+
+    //block until test finish
+    //while i2s2_data_c.len() < i2s2_data_c.capacity() {}
+
+    //disable driver and transfer and release
+    let i2s2 = shared_i2s2_driver.lock(|i2s2_driver| {
+        if let Some(MasterReceive32bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
             i2s2_driver.release()
         } else {

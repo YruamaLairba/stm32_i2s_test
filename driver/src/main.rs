@@ -76,23 +76,6 @@ mod app {
     >;
     pub type I2s3 = I2s<SPI3, (Pin<'A', 4_u8>, Pin<'C', 10_u8>, NoPin, Pin<'C', 12_u8>)>;
 
-    // Part of the frame we currently transmit or receive
-    #[derive(Copy, Clone)]
-    pub enum FrameState {
-        LeftMsb,
-        LeftLsb,
-        RightMsb,
-        RightLsb,
-    }
-
-    use FrameState::{LeftLsb, LeftMsb, RightLsb, RightMsb};
-
-    impl Default for FrameState {
-        fn default() -> Self {
-            Self::LeftMsb
-        }
-    }
-
     #[derive(Copy, Clone)]
     pub enum I2sCtl {
         Disable,
@@ -102,7 +85,7 @@ mod app {
     #[shared]
     struct Shared {
         i2s2_driver: DriverWrap<I2s2>,
-        i2s3_driver: Option<TransmitDriver<I2s3, Philips>>,
+        i2s3_driver: DriverWrap<I2s3>,
         exti: EXTI,
     }
     pub use crate::app::shared_resources::exti_that_needs_to_be_locked;
@@ -199,7 +182,7 @@ mod app {
 
         //i2s2_driver.enable();
         let i2s2_driver = DriverWrap::new(None); //Some(ReceiveDriver::Master(i2s2_driver));
-        let i2s3_driver = None; //Some(TransmitDriver::Slave(i2s3_driver));
+        let i2s3_driver = DriverWrap::new(None); //Some(TransmitDriver::Slave(i2s3_driver));
 
         (
             Shared {
@@ -248,7 +231,7 @@ mod app {
             i2s2,
             i2s3,
         );
-/*
+
         let (i2s2, i2s3) = test::slave_receive_master_transmit_driver_interrupt(
             &mut shared_exti,
             &mut shared_i2s2_driver,
@@ -281,7 +264,14 @@ mod app {
             i2s2,
             i2s3,
         );
-*/
+
+        let (i2s2, i2s3) = test::master_receive_driver_slave_transmit_transfer_nb(
+            &mut shared_i2s2_driver,
+            i2s2_data_c,
+            i2s2,
+            i2s3,
+        );
+
         #[allow(clippy::empty_loop)]
         loop {}
     }
@@ -314,103 +304,17 @@ mod app {
         priority = 4,
         binds = SPI3,
         local = [
-            frame_state: FrameState = LeftMsb,
-            frame: (u32,u32) = (0,0),i2s3_data_c,
+            i2s3_data_c,
             i2s3_ctl_c
         ],
         shared = [i2s3_driver,exti]
     )]
     fn i2s3(cx: i2s3::Context) {
-        let frame_state = cx.local.frame_state;
-        let frame = cx.local.frame;
         let i2s3_data_c = cx.local.i2s3_data_c;
         let mut i2s3_driver = cx.shared.i2s3_driver;
         let mut exti = cx.shared.exti;
         i2s3_driver.lock(|i2s3_driver| {
-            match i2s3_driver {
-                Some(TransmitDriver::Slave(i2s3_driver)) => {
-                    let status = i2s3_driver.status();
-                    // it's better to write data first to avoid to trigger udr flag
-                    if status.txe() {
-                        let data;
-                        match (*frame_state, status.chside()) {
-                            (LeftMsb, Channel::Left) => {
-                                let (l, r) = i2s3_data_c.dequeue().unwrap_or_default();
-                                *frame = (l as u32, r as u32);
-                                data = (frame.0 >> 16) as u16;
-                                *frame_state = LeftLsb;
-                            }
-                            (LeftLsb, Channel::Left) => {
-                                data = (frame.0 & 0xFFFF) as u16;
-                                *frame_state = RightMsb;
-                            }
-                            (RightMsb, Channel::Right) => {
-                                data = (frame.1 >> 16) as u16;
-                                *frame_state = RightLsb;
-                            }
-                            (RightLsb, Channel::Right) => {
-                                data = (frame.1 & 0xFFFF) as u16;
-                                *frame_state = LeftMsb;
-                            }
-                            // in case of udr this resynchronize tracked and actual channel
-                            _ => {
-                                *frame_state = LeftMsb;
-                                data = 0; //garbage data to avoid additional underrrun
-                            }
-                        }
-                        i2s3_driver.write_data_register(data);
-                    }
-                    if status.fre() {
-                        log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
-                        i2s3_driver.disable();
-                        exti.lock(|exti| {
-                            i2s3_driver
-                                .i2s_peripheral_mut()
-                                .ws_pin_mut()
-                                .enable_interrupt(exti)
-                        })
-                    }
-                    if status.udr() {
-                        log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
-                        i2s3_driver.status();
-                        i2s3_driver.write_data_register(0);
-                    }
-                }
-                Some(TransmitDriver::Master(i2s3_driver)) => {
-                    let status = i2s3_driver.status();
-                    // it's better to write data first to avoid to trigger udr flag
-                    if status.txe() {
-                        let data;
-                        match (*frame_state, status.chside()) {
-                            (LeftMsb, Channel::Left) => {
-                                let (l, r) = i2s3_data_c.dequeue().unwrap_or_default();
-                                *frame = (l as u32, r as u32);
-                                data = (frame.0 >> 16) as u16;
-                                *frame_state = LeftLsb;
-                            }
-                            (LeftLsb, Channel::Left) => {
-                                data = (frame.0 & 0xFFFF) as u16;
-                                *frame_state = RightMsb;
-                            }
-                            (RightMsb, Channel::Right) => {
-                                data = (frame.1 >> 16) as u16;
-                                *frame_state = RightLsb;
-                            }
-                            (RightLsb, Channel::Right) => {
-                                data = (frame.1 & 0xFFFF) as u16;
-                                *frame_state = LeftMsb;
-                            }
-                            // in case of udr this resynchronize tracked and actual channel
-                            _ => {
-                                *frame_state = LeftMsb;
-                                data = 0; //garbage data to avoid additional underrrun
-                            }
-                        }
-                        i2s3_driver.write_data_register(data);
-                    }
-                }
-                _ => (),
-            }
+            i2s3_driver.transmit_interrupt_handler(&mut exti,i2s3_data_c);
         })
     }
 
@@ -420,7 +324,7 @@ mod app {
         let i2s3_driver = cx.shared.i2s3_driver;
         let exti = cx.shared.exti;
         (exti, i2s3_driver).lock(|exti, i2s3_driver| {
-            if let Some(TransmitDriver::Slave(i2s3_driver)) = i2s3_driver {
+            if let Some(SlaveTransmit32bits(ref mut i2s3_driver)) = i2s3_driver.drv {
                 let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
                 ws_pin.clear_interrupt_pending_bit();
                 // yes, in this case we already know that pin is high, but some other exti can be triggered
