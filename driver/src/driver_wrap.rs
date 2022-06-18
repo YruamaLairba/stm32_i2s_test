@@ -34,7 +34,7 @@ pub enum DriverMode<I> {
 use DriverMode::*;
 
 pub struct DriverWrap<I> {
-    drv: Option<DriverMode<I>>,
+    pub drv: Option<DriverMode<I>>,
     frame_state: FrameState,
     frame: (u32, u32),
 }
@@ -247,6 +247,14 @@ fn _master_receive_32bits_interrupt<I: I2sPeripheral>(
 }
 
 impl<I: I2sPeripheral> DriverWrap<I> {
+    pub fn new(drv: Option<DriverMode<I>>) -> Self {
+        Self {
+            drv,
+            frame_state: LeftMsb,
+            frame: (0, 0),
+        }
+    }
+
     pub fn take(&mut self) -> Option<DriverMode<I>> {
         self.drv.take()
     }
@@ -254,13 +262,20 @@ impl<I: I2sPeripheral> DriverWrap<I> {
     pub fn replace(&mut self, drv: DriverMode<I>) -> Option<DriverMode<I>> {
         self.drv.replace(drv)
     }
+
+    //reset frame tracking
+    pub fn reset_frame(&mut self) {
+        self.frame_state = LeftMsb;
+        self.frame = (0,0);
+    }
 }
 
 impl DriverWrap<I2s3> {
     pub fn transmit_interrupt_handler(
         &mut self,
         exti: &mut impl Mutex<T = EXTI>,
-        data_c: &mut Consumer<'static, (i32, i32), 8>) {
+        data_c: &mut Consumer<'static, (i32, i32), 8>,
+    ) {
         match self.drv {
             Some(SlaveTransmit32bits(ref mut drv)) => _slave_transmit_32bits_interrupt(
                 drv,

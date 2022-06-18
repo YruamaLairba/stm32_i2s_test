@@ -16,6 +16,10 @@ use hal::rcc::Reset;
 
 use rtic::mutex::prelude::*;
 
+use crate::driver_wrap::*;
+
+use DriverMode::*;
+
 const FRM_32: &[(i32, i32)] = &[
     (0x11113333u32 as _, 0x7777EEEEu32 as _),
     (0x22224444u32 as _, 0x55556666u32 as _),
@@ -29,7 +33,7 @@ const FRM_32: &[(i32, i32)] = &[
 
 pub fn master_receive_slave_transmit_driver_interrupt(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
-    mut shared_i2s2_driver: &mut impl Mutex<T = Option<ReceiveDriver<I2s2, Philips>>>,
+    mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     mut shared_i2s3_driver: &mut impl Mutex<T = Option<TransmitDriver<I2s3, Philips>>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,
@@ -77,7 +81,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     )
         .lock(|exti, shared_i2s2_driver, shared_i2s3_driver| {
             i2s2_driver.enable();
-            *shared_i2s2_driver = Some(ReceiveDriver::Master(i2s2_driver));
+            shared_i2s2_driver.replace(MasterReceive32bits(i2s2_driver));
             let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
             ws_pin.enable_interrupt(exti);
             *shared_i2s3_driver = Some(TransmitDriver::Slave(i2s3_driver));
@@ -88,7 +92,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 
     //disable driver and release
     let i2s2 = shared_i2s2_driver.lock(|shared_i2s2_driver| {
-        if let Some(ReceiveDriver::Master(mut i2s2_driver)) = shared_i2s2_driver.take() {
+        if let Some(MasterReceive32bits(mut i2s2_driver)) = shared_i2s2_driver.take() {
             i2s2_driver.disable();
             i2s2_driver.release()
         } else {

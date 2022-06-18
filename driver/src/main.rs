@@ -17,6 +17,7 @@ use stm32f4xx_hal as hal;
 pub mod test;
 pub mod driver_wrap;
 
+
 #[rtic::app(
     device = stm32f4xx_hal::pac,
     peripherals = true,
@@ -37,6 +38,7 @@ mod app {
     use hal::prelude::*;
 
     use super::test;
+    use super::driver_wrap::{*,DriverMode::*};
 
     use heapless::spsc::*;
 
@@ -99,7 +101,7 @@ mod app {
 
     #[shared]
     struct Shared {
-        i2s2_driver: Option<ReceiveDriver<I2s2, Philips>>,
+        i2s2_driver: DriverWrap<I2s2>,
         i2s3_driver: Option<TransmitDriver<I2s3, Philips>>,
         exti: EXTI,
     }
@@ -196,7 +198,7 @@ mod app {
         let i2s3 = Some(I2s::new(device.SPI3, i2s3_pins, &clocks));
 
         //i2s2_driver.enable();
-        let i2s2_driver = None; //Some(ReceiveDriver::Master(i2s2_driver));
+        let i2s2_driver = DriverWrap::new(None); //Some(ReceiveDriver::Master(i2s2_driver));
         let i2s3_driver = None; //Some(TransmitDriver::Slave(i2s3_driver));
 
         (
@@ -246,7 +248,7 @@ mod app {
             i2s2,
             i2s3,
         );
-
+/*
         let (i2s2, i2s3) = test::slave_receive_master_transmit_driver_interrupt(
             &mut shared_exti,
             &mut shared_i2s2_driver,
@@ -279,6 +281,7 @@ mod app {
             i2s2,
             i2s3,
         );
+*/
         #[allow(clippy::empty_loop)]
         loop {}
     }
@@ -293,122 +296,17 @@ mod app {
         priority = 4,
         binds = SPI2,
         local = [
-            frame_state: FrameState = LeftMsb,
-            frame: (u32, u32) = (0, 0), i2s2_data_p,
+            i2s2_data_p,
             i2s2_ctl_c
         ],
         shared = [i2s2_driver,exti]
     )]
     fn i2s2(cx: i2s2::Context) {
-        let frame_state = cx.local.frame_state;
-        let frame = cx.local.frame;
         let i2s2_data_p = cx.local.i2s2_data_p;
         let mut i2s2_driver = cx.shared.i2s2_driver;
         let mut exti = cx.shared.exti;
         i2s2_driver.lock(|i2s2_driver| {
-            match i2s2_driver {
-                Some(ReceiveDriver::Master(i2s2_driver)) => {
-                    let status = i2s2_driver.status();
-                    // It's better to read first to avoid triggering ovr flag
-                    if status.rxne() {
-                        let data = i2s2_driver.read_data_register();
-                        match (*frame_state, status.chside()) {
-                            (LeftMsb, Channel::Left) => {
-                                frame.0 = (data as u32) << 16;
-                                *frame_state = LeftLsb;
-                            }
-                            (LeftLsb, Channel::Left) => {
-                                frame.0 |= data as u32;
-                                *frame_state = RightMsb;
-                            }
-                            (RightMsb, Channel::Right) => {
-                                frame.1 = (data as u32) << 16;
-                                *frame_state = RightLsb;
-                            }
-                            (RightLsb, Channel::Right) => {
-                                frame.1 |= data as u32;
-                                // defer sample processing to another task
-                                let (l, r) = *frame;
-                                i2s2_data_p
-                                    .enqueue((DWT::cycle_count(), (l as i32, r as i32)))
-                                    .ok();
-                                if !i2s2_data_p.ready() {
-                                    i2s2_driver.disable();
-                                    rprintln!("{} master receive stopped", DWT::cycle_count(),);
-                                }
-                                *frame_state = LeftMsb;
-                            }
-                            // in case of ovr this resynchronize at start of new frame
-                            _ => {
-                                log::spawn(DWT::cycle_count(), "i2s2 Channel Err").ok();
-                                *frame_state = LeftMsb;
-                            }
-                        }
-                    }
-                    if status.ovr() {
-                        log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
-                        // sequence to delete ovr flag
-                        i2s2_driver.read_data_register();
-                        i2s2_driver.status();
-                    }
-                }
-                Some(ReceiveDriver::Slave(i2s2_driver)) => {
-                    let status = i2s2_driver.status();
-                    // It's better to read first to avoid triggering ovr flag
-                    if status.rxne() {
-                        let data = i2s2_driver.read_data_register();
-                        match (*frame_state, status.chside()) {
-                            (LeftMsb, Channel::Left) => {
-                                frame.0 = (data as u32) << 16;
-                                *frame_state = LeftLsb;
-                            }
-                            (LeftLsb, Channel::Left) => {
-                                frame.0 |= data as u32;
-                                *frame_state = RightMsb;
-                            }
-                            (RightMsb, Channel::Right) => {
-                                frame.1 = (data as u32) << 16;
-                                *frame_state = RightLsb;
-                            }
-                            (RightLsb, Channel::Right) => {
-                                frame.1 |= data as u32;
-                                // defer sample processing to another task
-                                let (l, r) = *frame;
-                                i2s2_data_p
-                                    .enqueue((DWT::cycle_count(), (l as i32, r as i32)))
-                                    .ok();
-                                if !i2s2_data_p.ready() {
-                                    i2s2_driver.disable();
-                                    rprintln!("{} master receive stopped", DWT::cycle_count(),);
-                                }
-                                *frame_state = LeftMsb;
-                            }
-                            // in case of ovr this resynchronize at start of new frame
-                            _ => {
-                                log::spawn(DWT::cycle_count(), "i2s2 Channel Err").ok();
-                                *frame_state = LeftMsb;
-                            }
-                        }
-                    }
-                    if status.fre() {
-                        log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
-                        i2s2_driver.disable();
-                        exti.lock(|exti| {
-                            i2s2_driver
-                                .i2s_peripheral_mut()
-                                .ws_pin_mut()
-                                .enable_interrupt(exti)
-                        })
-                    }
-                    if status.ovr() {
-                        log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
-                        // sequence to delete ovr flag
-                        i2s2_driver.read_data_register();
-                        i2s2_driver.status();
-                    }
-                }
-                _ => (),
-            }
+            i2s2_driver.receive_interrupt_handler(&mut exti,i2s2_data_p);
         });
     }
 
@@ -542,7 +440,7 @@ mod app {
         let i2s2_driver = cx.shared.i2s2_driver;
         let exti = cx.shared.exti;
         (exti, i2s2_driver).lock(|exti, i2s2_driver| {
-            if let Some(ReceiveDriver::Slave(i2s2_driver)) = i2s2_driver {
+            if let Some(SlaveReceive32bits(ref mut i2s2_driver)) = i2s2_driver.drv {
                 let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
                 ws_pin.clear_interrupt_pending_bit();
                 // yes, in this case we already know that pin is high, but some other exti can be triggered
