@@ -2,7 +2,7 @@
 
 use crate::app::{I2s2, I2s3};
 use heapless::spsc::*;
-use rtt_target::rprintln;
+use rtt_target::{rprint,rprintln};
 
 use crate::hal;
 
@@ -96,7 +96,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive + Slave Transmit driver 32 bits with interrupt");
+    rprint!("Master Receive + Slave Transmit driver 32 bits with interrupt");
 
     // Set up drivers
     let mut i2s2_driver = I2sDriverConfig::new_master()
@@ -106,7 +106,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
         .master_clock(true)
         .request_frequency(1)
         .i2s_driver(i2s2);
-    rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
+    rprint!(", SR {} ... ", i2s2_driver.sample_rate());
     i2s2_driver.set_rx_interrupt(true);
     i2s2_driver.set_error_interrupt(true);
 
@@ -124,7 +124,6 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     }
 
     // start drivers
-    rprintln!("{} Start i2s2 and i2s3", DWT::cycle_count());
     (
         &mut shared_exti,
         &mut shared_i2s2_driver,
@@ -189,7 +188,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive + Master Transmit driver 32 bits with interrupt");
+    rprint!("Slave Receive + Master Transmit driver 32 bits with interrupt");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -210,7 +209,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     i2s2_driver.set_error_interrupt(true);
 
     let mut i2s3_driver = drv_cfg_base.transmit().i2s_driver(i2s3);
-    rprintln!("actual sample rate is {}", i2s3_driver.sample_rate());
+    rprint!(", SR {} ... ", i2s3_driver.sample_rate());
     i2s3_driver.set_tx_interrupt(true);
 
     // prepare data to transmit
@@ -219,7 +218,6 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     }
 
     // start drivers
-    rprintln!("{} Start i2s2 and i2s3", DWT::cycle_count());
     (
         &mut shared_exti,
         &mut shared_i2s2_driver,
@@ -282,7 +280,7 @@ pub fn master_transmit_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Transmit Transfer 32 bits block");
+    rprint!("Master Transmit Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -310,10 +308,9 @@ pub fn master_transmit_transfer_block(
     i2s2_driver.set_error_interrupt(true);
 
     let mut i2s3_transfer = transfer_cfg_base.transmit().i2s_transfer(i2s3);
-    rprintln!("actual sample rate is {}", i2s3_transfer.sample_rate());
+    rprint!(", SR {} ... ", i2s3_transfer.sample_rate());
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     (&mut shared_exti, &mut shared_i2s2_driver).lock(|exti, shared_i2s2_driver| {
         let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
         ws_pin.enable_interrupt(exti);
@@ -321,7 +318,6 @@ pub fn master_transmit_transfer_block(
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     i2s3_transfer.write_iter(FRM_32.iter().copied());
 
     //block until test finish
@@ -365,7 +361,7 @@ pub fn master_transmit_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Transmit Transfer 32 bits nb");
+    rprint!("Master Transmit Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -393,10 +389,9 @@ pub fn master_transmit_transfer_nb(
     i2s2_driver.set_error_interrupt(true);
 
     let mut i2s3_transfer = transfer_cfg_base.transmit().i2s_transfer(i2s3);
-    rprintln!("actual sample rate is {}", i2s3_transfer.sample_rate());
+    rprint!(", SR {} ... ", i2s3_transfer.sample_rate());
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     (&mut shared_exti, &mut shared_i2s2_driver).lock(|exti, shared_i2s2_driver| {
         let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
         ws_pin.enable_interrupt(exti);
@@ -404,7 +399,6 @@ pub fn master_transmit_transfer_nb(
     });
 
     //nb transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     for data in FRM_32 {
         while i2s3_transfer.write(*data).is_err() {}
     }
@@ -450,7 +444,7 @@ pub fn slave_transmit_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Transmit Transfer 32 bits block");
+    rprint!("Slave Transmit Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -474,21 +468,19 @@ pub fn slave_transmit_transfer_block(
 
     // Set up drivers and transfert
     let mut i2s2_driver = drv_cfg_base.receive().i2s_driver(i2s2);
-    rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
+    rprint!(", SR {} ... ", i2s2_driver.sample_rate());
     i2s2_driver.set_rx_interrupt(true);
     i2s2_driver.set_error_interrupt(true);
 
     let mut i2s3_transfer = transfer_cfg_base.to_slave().transmit().i2s_transfer(i2s3);
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     shared_i2s2_driver.lock(|shared_i2s2_driver| {
         i2s2_driver.enable();
         shared_i2s2_driver.replace(MasterReceive32bits(i2s2_driver));
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     i2s3_transfer.write_iter(FRM_32[0..7].iter().copied());
 
     //block until test finish
@@ -529,7 +521,7 @@ pub fn slave_transmit_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Transmit Transfer 32 bits nb");
+    rprint!("Slave Transmit Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -553,21 +545,19 @@ pub fn slave_transmit_transfer_nb(
 
     // Set up drivers and transfert
     let mut i2s2_driver = drv_cfg_base.receive().i2s_driver(i2s2);
-    rprintln!("actual sample rate is {}", i2s2_driver.sample_rate());
+    rprint!(", SR {} ... ", i2s2_driver.sample_rate());
     i2s2_driver.set_rx_interrupt(true);
     i2s2_driver.set_error_interrupt(true);
 
     let mut i2s3_transfer = transfer_cfg_base.to_slave().transmit().i2s_transfer(i2s3);
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     shared_i2s2_driver.lock(|shared_i2s2_driver| {
         i2s2_driver.enable();
         shared_i2s2_driver.replace(MasterReceive32bits(i2s2_driver));
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     for data in FRM_32.iter() {
         while i2s3_transfer.write(*data).is_err() {}
     }
@@ -612,7 +602,7 @@ pub fn master_receive_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive Transfer 32 bits block");
+    rprint!("Master Receive Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -636,7 +626,7 @@ pub fn master_receive_transfer_block(
 
     // Set up drivers and transfer
     let mut i2s2_transfer = transfer_cfg_base.receive().i2s_transfer(i2s2);
-    rprintln!("actual sample rate is {}", i2s2_transfer.sample_rate());
+    rprint!(", SR {} ... ", i2s2_transfer.sample_rate());
 
     let mut i2s3_driver = drv_cfg_base.to_slave().transmit().i2s_driver(i2s3);
     i2s3_driver.set_tx_interrupt(true);
@@ -648,7 +638,6 @@ pub fn master_receive_transfer_block(
     }
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     (&mut shared_i2s3_driver, &mut shared_exti).lock(|shared_i2s3_driver, exti| {
         let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
         ws_pin.enable_interrupt(exti);
@@ -656,7 +645,6 @@ pub fn master_receive_transfer_block(
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     let mut res_iter = res_32.iter_mut().peekable();
     i2s2_transfer.read_while(|s| {
         if let Some(r) = res_iter.next() {
@@ -699,7 +687,7 @@ pub fn master_receive_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Master Receive Transfer 32 bits nb");
+    rprint!("Master Receive Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -723,7 +711,7 @@ pub fn master_receive_transfer_nb(
 
     // Set up drivers and transfer
     let mut i2s2_transfer = transfer_cfg_base.receive().i2s_transfer(i2s2);
-    rprintln!("actual sample rate is {}", i2s2_transfer.sample_rate());
+    rprint!(", SR {} ... ", i2s2_transfer.sample_rate());
 
     let mut i2s3_driver = drv_cfg_base.to_slave().transmit().i2s_driver(i2s3);
     i2s3_driver.set_tx_interrupt(true);
@@ -735,7 +723,6 @@ pub fn master_receive_transfer_nb(
     }
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     (&mut shared_i2s3_driver, &mut shared_exti).lock(|shared_i2s3_driver, exti| {
         let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
         ws_pin.enable_interrupt(exti);
@@ -743,7 +730,6 @@ pub fn master_receive_transfer_nb(
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     for r in res_32.iter_mut() {
         let data = loop {
             if let Ok(s) = i2s2_transfer.read() {
@@ -786,7 +772,7 @@ pub fn slave_receive_transfer_block(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive Transfer 32 bits block");
+    rprint!("Slave Receive Transfer 32 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -813,7 +799,7 @@ pub fn slave_receive_transfer_block(
 
     let mut i2s3_driver = drv_cfg_base.transmit().i2s_driver(i2s3);
     i2s3_driver.set_tx_interrupt(true);
-    rprintln!("actual sample rate is {}", i2s3_driver.sample_rate());
+    rprint!(", SR {} ... ", i2s3_driver.sample_rate());
 
     // prepare data to transmit
     for e in FRM_32 {
@@ -821,14 +807,12 @@ pub fn slave_receive_transfer_block(
     }
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     shared_i2s3_driver.lock(|shared_i2s3_driver| {
         i2s3_driver.enable();
         shared_i2s3_driver.replace(MasterTransmit32bits(i2s3_driver));
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     let mut res_iter = res_32.iter_mut().peekable();
     i2s2_transfer.read_while(|s| {
         if let Some(r) = res_iter.next() {
@@ -870,7 +854,7 @@ pub fn slave_receive_transfer_nb(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!("--- Slave Receive Transfer 32 bits nb");
+    rprint!("Slave Receive Transfer 32 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -897,7 +881,7 @@ pub fn slave_receive_transfer_nb(
 
     let mut i2s3_driver = drv_cfg_base.transmit().i2s_driver(i2s3);
     i2s3_driver.set_tx_interrupt(true);
-    rprintln!("actual sample rate is {}", i2s3_driver.sample_rate());
+    rprint!(", SR {} ... ", i2s3_driver.sample_rate());
 
     // prepare data to transmit
     for e in FRM_32 {
@@ -905,14 +889,12 @@ pub fn slave_receive_transfer_nb(
     }
 
     // start drivers
-    rprintln!("{} Start i2s2 driver", DWT::cycle_count());
     shared_i2s3_driver.lock(|shared_i2s3_driver| {
         i2s3_driver.enable();
         shared_i2s3_driver.replace(MasterTransmit32bits(i2s3_driver));
     });
 
     //blocking transmit
-    rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
     for r in res_32.iter_mut() {
         let data = loop {
             if let Ok(s) = i2s2_transfer.read() {

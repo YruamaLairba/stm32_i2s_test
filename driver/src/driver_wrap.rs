@@ -7,7 +7,6 @@ use crate::hal::pac::DWT;
 use crate::hal::pac::EXTI;
 use heapless::spsc::*;
 use rtic::mutex::prelude::*;
-use rtt_target::rprintln;
 
 type I2sStd = Philips;
 
@@ -166,7 +165,6 @@ fn _slave_receive_32bits_interrupt(
                     .ok();
                 if !data_p.ready() {
                     driver.disable();
-                    rprintln!("{} slave receive stopped", DWT::cycle_count(),);
                 }
                 *frame_state = LeftMsb;
             }
@@ -227,7 +225,6 @@ fn _master_receive_32bits_interrupt<I: I2sPeripheral>(
                     .ok();
                 if !data_p.ready() {
                     driver.disable();
-                    rprintln!("{} master receive stopped", DWT::cycle_count(),);
                 }
                 *frame_state = LeftMsb;
             }
