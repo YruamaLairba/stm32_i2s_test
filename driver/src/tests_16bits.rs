@@ -73,7 +73,7 @@ fn check_result<const N:usize>(res: &[(u32, (i16, i16));N]) {
         for (e, r) in FRM_32.iter().zip(res.iter()) {
             let (t, r) = r;
             rprintln!(
-                "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
+                "{:#06x} {:#06x}, {:10} {:#06x} {:#06x}",
                 e.0,
                 e.1,
                 t,
