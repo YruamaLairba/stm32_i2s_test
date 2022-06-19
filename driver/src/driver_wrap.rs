@@ -33,7 +33,7 @@ pub enum DriverMode<I> {
 use DriverMode::*;
 
 pub struct DriverWrap<I> {
-    pub drv: Option<DriverMode<I>>,
+    drv: Option<DriverMode<I>>,
     frame_state: FrameState,
     frame: (u32, u32),
 }
@@ -366,7 +366,6 @@ fn _master_receive_16bits_interrupt<I: I2sPeripheral>(
     }
 }
 
-
 fn _master_receive_32bits_interrupt<I: I2sPeripheral>(
     driver: &mut I2sDriver<I, Master, Receive, I2sStd>,
     frame_state: &mut FrameState,
@@ -428,7 +427,7 @@ impl<I: I2sPeripheral> DriverWrap<I> {
 
     pub fn take(&mut self) -> Option<DriverMode<I>> {
         self.frame_state = LeftMsb;
-        self.frame = (0,0);
+        self.frame = (0, 0);
         self.drv.take()
     }
 
@@ -439,7 +438,7 @@ impl<I: I2sPeripheral> DriverWrap<I> {
     //reset frame tracking
     pub fn reset_frame(&mut self) {
         self.frame_state = LeftMsb;
-        self.frame = (0,0);
+        self.frame = (0, 0);
     }
 }
 
@@ -480,6 +479,30 @@ impl DriverWrap<I2s3> {
             _ => unimplemented!(),
         }
     }
+
+    pub fn transmit_exti_handler(&mut self, exti: &mut EXTI) {
+        match self.drv {
+            Some(SlaveTransmit16bits(ref mut i2s3_driver)) => {
+                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+                ws_pin.clear_interrupt_pending_bit();
+                if ws_pin.is_high() {
+                    ws_pin.disable_interrupt(exti);
+                    i2s3_driver.write_data_register(0);
+                    i2s3_driver.enable();
+                }
+            }
+            Some(SlaveTransmit32bits(ref mut i2s3_driver)) => {
+                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+                ws_pin.clear_interrupt_pending_bit();
+                if ws_pin.is_high() {
+                    ws_pin.disable_interrupt(exti);
+                    i2s3_driver.write_data_register(0);
+                    i2s3_driver.enable();
+                }
+            }
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl DriverWrap<I2s2> {
@@ -516,6 +539,30 @@ impl DriverWrap<I2s2> {
                 &mut self.frame,
                 data_32_p,
             ),
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn receive_exti_handler(&mut self, exti: &mut EXTI) {
+        match self.drv {
+            Some(SlaveReceive16bits(ref mut i2s2_driver)) => {
+                let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+                ws_pin.clear_interrupt_pending_bit();
+                if ws_pin.is_high() {
+                    ws_pin.disable_interrupt(exti);
+                    //i2s2_driver.write_data_register(0);
+                    i2s2_driver.enable();
+                }
+            }
+            Some(SlaveReceive32bits(ref mut i2s2_driver)) => {
+                let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+                ws_pin.clear_interrupt_pending_bit();
+                if ws_pin.is_high() {
+                    ws_pin.disable_interrupt(exti);
+                    //i2s2_driver.write_data_register(0);
+                    i2s2_driver.enable();
+                }
+            }
             _ => unimplemented!(),
         }
     }

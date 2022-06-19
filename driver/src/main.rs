@@ -32,11 +32,12 @@ mod app {
     use hal::gpio::{NoPin, Pin};
     use hal::i2s::stm32_i2s_v12x::driver::*;
     use hal::i2s::I2s;
+    #[allow(unused)]
     use hal::pac::DWT;
     use hal::pac::{EXTI, SPI2, SPI3};
     use hal::prelude::*;
 
-    use driver_wrap::{DriverMode::*, *};
+    use driver_wrap::*;
 
     use heapless::spsc::*;
 
@@ -348,17 +349,7 @@ mod app {
         let i2s3_driver = cx.shared.i2s3_driver;
         let exti = cx.shared.exti;
         (exti, i2s3_driver).lock(|exti, i2s3_driver| {
-            if let Some(SlaveTransmit32bits(ref mut i2s3_driver)) = i2s3_driver.drv {
-                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
-                ws_pin.clear_interrupt_pending_bit();
-                // yes, in this case we already know that pin is high, but some other exti can be triggered
-                // by several pins
-                if ws_pin.is_high() {
-                    ws_pin.disable_interrupt(exti);
-                    i2s3_driver.write_data_register(0);
-                    i2s3_driver.enable();
-                }
-            }
+            i2s3_driver.transmit_exti_handler(exti);
         });
     }
 
@@ -368,17 +359,7 @@ mod app {
         let i2s2_driver = cx.shared.i2s2_driver;
         let exti = cx.shared.exti;
         (exti, i2s2_driver).lock(|exti, i2s2_driver| {
-            if let Some(SlaveReceive32bits(ref mut i2s2_driver)) = i2s2_driver.drv {
-                let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
-                ws_pin.clear_interrupt_pending_bit();
-                // yes, in this case we already know that pin is high, but some other exti can be triggered
-                // by several pins
-                if ws_pin.is_high() {
-                    ws_pin.disable_interrupt(exti);
-                    //i2s2_driver.write_data_register(0);
-                    i2s2_driver.enable();
-                }
-            }
+            i2s2_driver.receive_exti_handler(exti);
         });
     }
 }
