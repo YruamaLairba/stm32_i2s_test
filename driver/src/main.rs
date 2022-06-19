@@ -16,6 +16,7 @@ use stm32f4xx_hal as hal;
 
 pub mod driver_wrap;
 pub mod test;
+pub mod tests_16bits;
 
 #[rtic::app(
     device = stm32f4xx_hal::pac,
@@ -23,10 +24,9 @@ pub mod test;
     dispatchers = [EXTI0, EXTI1, EXTI2]
 )]
 mod app {
+    use super::*;
 
     use core::fmt::Write;
-
-    use super::hal;
 
     use hal::gpio::Edge;
     use hal::gpio::{NoPin, Pin};
@@ -36,8 +36,7 @@ mod app {
     use hal::pac::{EXTI, SPI2, SPI3};
     use hal::prelude::*;
 
-    use super::driver_wrap::{DriverMode::*, *};
-    use super::test;
+    use driver_wrap::{DriverMode::*, *};
 
     use heapless::spsc::*;
 
@@ -96,28 +95,30 @@ mod app {
         logs_chan: rtt_target::UpChannel,
         i2s2: Option<I2s2>,
         i2s3: Option<I2s3>,
-        i2s2_data_p: Producer<'static, (u32, (i32, i32)), 8>,
-        i2s2_data_c: Consumer<'static, (u32, (i32, i32)), 8>,
-        i2s3_data_p: Producer<'static, (i32, i32), 8>,
-        i2s3_data_c: Consumer<'static, (i32, i32), 8>,
-        i2s2_ctl_p: Producer<'static, I2sCtl, 2>,
-        i2s2_ctl_c: Consumer<'static, I2sCtl, 2>,
-        i2s3_ctl_p: Producer<'static, I2sCtl, 2>,
-        i2s3_ctl_c: Consumer<'static, I2sCtl, 2>,
+        i2s2_data_16_p: Producer<'static, (u32, (i16, i16)), 8>,
+        i2s2_data_16_c: Consumer<'static, (u32, (i16, i16)), 8>,
+        i2s3_data_16_p: Producer<'static, (i16, i16), 8>,
+        i2s3_data_16_c: Consumer<'static, (i16, i16), 8>,
+        i2s2_data_32_p: Producer<'static, (u32, (i32, i32)), 8>,
+        i2s2_data_32_c: Consumer<'static, (u32, (i32, i32)), 8>,
+        i2s3_data_32_p: Producer<'static, (i32, i32), 8>,
+        i2s3_data_32_c: Consumer<'static, (i32, i32), 8>,
     }
 
     #[init(
         local = [
-            i2s2_data_q: Queue<(u32, (i32,i32)), 8> = Queue::new(),
-            i2s3_data_q: Queue<(i32,i32), 8> = Queue::new(),
+            i2s2_data_16_q: Queue<(u32, (i16,i16)), 8> = Queue::new(),
+            i2s3_data_16_q: Queue<(i16,i16), 8> = Queue::new(),
+            i2s2_data_32_q: Queue<(u32, (i32,i32)), 8> = Queue::new(),
+            i2s3_data_32_q: Queue<(i32,i32), 8> = Queue::new(),
             i2s2_ctl_q: Queue<I2sCtl, 2> = Queue::new(),
             i2s3_ctl_q: Queue<I2sCtl, 2> = Queue::new()]
         )]
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
-        let i2s2_data_q = cx.local.i2s2_data_q;
-        let i2s3_data_q = cx.local.i2s3_data_q;
-        let i2s2_ctl_q = cx.local.i2s2_ctl_q;
-        let i2s3_ctl_q = cx.local.i2s3_ctl_q;
+        let i2s2_data_16_q = cx.local.i2s2_data_16_q;
+        let i2s3_data_16_q = cx.local.i2s3_data_16_q;
+        let i2s2_data_32_q = cx.local.i2s2_data_32_q;
+        let i2s3_data_32_q = cx.local.i2s3_data_32_q;
         let channels = rtt_init! {
             up: {
                 0: {
@@ -134,10 +135,10 @@ mod app {
         let logs_chan = channels.up.0;
         let panics_chan = channels.up.1;
         set_print_channel(panics_chan);
-        let (i2s2_data_p, i2s2_data_c) = i2s2_data_q.split();
-        let (i2s3_data_p, i2s3_data_c) = i2s3_data_q.split();
-        let (i2s2_ctl_p, i2s2_ctl_c) = i2s2_ctl_q.split();
-        let (i2s3_ctl_p, i2s3_ctl_c) = i2s3_ctl_q.split();
+        let (i2s2_data_16_p, i2s2_data_16_c) = i2s2_data_16_q.split();
+        let (i2s3_data_16_p, i2s3_data_16_c) = i2s3_data_16_q.split();
+        let (i2s2_data_32_p, i2s2_data_32_c) = i2s2_data_32_q.split();
+        let (i2s3_data_32_p, i2s3_data_32_c) = i2s3_data_32_q.split();
         let mut core = cx.core;
         core.DCB.enable_trace();
         core.DWT.set_cycle_count(0);
@@ -193,14 +194,14 @@ mod app {
                 logs_chan,
                 i2s2,
                 i2s3,
-                i2s2_data_p,
-                i2s2_data_c,
-                i2s3_data_p,
-                i2s3_data_c,
-                i2s2_ctl_p,
-                i2s2_ctl_c,
-                i2s3_ctl_p,
-                i2s3_ctl_c,
+                i2s2_data_16_p,
+                i2s2_data_16_c,
+                i2s3_data_16_p,
+                i2s3_data_16_c,
+                i2s2_data_32_p,
+                i2s2_data_32_c,
+                i2s3_data_32_p,
+                i2s3_data_32_c,
             },
             init::Monotonics(),
         )
@@ -208,13 +209,15 @@ mod app {
 
     #[idle(
         shared = [i2s2_driver, i2s3_driver,exti],
-        local = [i2s2, i2s3, i2s2_data_c, i2s3_data_p, i2s2_ctl_p, i2s3_ctl_p]
+        local = [i2s2, i2s3, i2s2_data_16_c, i2s3_data_16_p, i2s2_data_32_c, i2s3_data_32_p]
     )]
     fn idle(cx: idle::Context) -> ! {
         let i2s2 = cx.local.i2s2.take().unwrap();
         let i2s3 = cx.local.i2s3.take().unwrap();
-        let i2s2_data_c = cx.local.i2s2_data_c;
-        let i2s3_data_p = cx.local.i2s3_data_p;
+        let i2s2_data_16_c = cx.local.i2s2_data_16_c;
+        let i2s3_data_16_p = cx.local.i2s3_data_16_p;
+        let i2s2_data_32_c = cx.local.i2s2_data_32_c;
+        let i2s3_data_32_p = cx.local.i2s3_data_32_p;
         //let i2s2_ctl_p = cx.local.i2s2_ctl_p;
         //let i2s3_ctl_p = cx.local.i2s3_ctl_p;
         let mut shared_i2s2_driver = cx.shared.i2s2_driver;
@@ -225,8 +228,8 @@ mod app {
             &mut shared_exti,
             &mut shared_i2s2_driver,
             &mut shared_i2s3_driver,
-            i2s2_data_c,
-            i2s3_data_p,
+            i2s2_data_32_c,
+            i2s3_data_32_p,
             i2s2,
             i2s3,
         );
@@ -235,8 +238,8 @@ mod app {
             &mut shared_exti,
             &mut shared_i2s2_driver,
             &mut shared_i2s3_driver,
-            i2s2_data_c,
-            i2s3_data_p,
+            i2s2_data_32_c,
+            i2s3_data_32_p,
             i2s2,
             i2s3,
         );
@@ -244,7 +247,7 @@ mod app {
         let (i2s2, i2s3) = test::master_transmit_transfer_block(
             &mut shared_exti,
             &mut shared_i2s2_driver,
-            i2s2_data_c,
+            i2s2_data_32_c,
             i2s2,
             i2s3,
         );
@@ -252,21 +255,25 @@ mod app {
         let (i2s2, i2s3) = test::master_transmit_transfer_nb(
             &mut shared_exti,
             &mut shared_i2s2_driver,
-            i2s2_data_c,
+            i2s2_data_32_c,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) = test::slave_transmit_transfer_block(
+            &mut shared_i2s2_driver,
+            i2s2_data_32_c,
             i2s2,
             i2s3,
         );
 
         let (i2s2, i2s3) =
-            test::slave_transmit_transfer_block(&mut shared_i2s2_driver, i2s2_data_c, i2s2, i2s3);
-
-        let (i2s2, i2s3) =
-            test::slave_transmit_transfer_nb(&mut shared_i2s2_driver, i2s2_data_c, i2s2, i2s3);
+            test::slave_transmit_transfer_nb(&mut shared_i2s2_driver, i2s2_data_32_c, i2s2, i2s3);
 
         let (i2s2, i2s3) = test::master_receive_transfer_block(
             &mut shared_exti,
             &mut shared_i2s3_driver,
-            i2s3_data_p,
+            i2s3_data_32_p,
             i2s2,
             i2s3,
         );
@@ -274,24 +281,16 @@ mod app {
         let (i2s2, i2s3) = test::master_receive_transfer_nb(
             &mut shared_exti,
             &mut shared_i2s3_driver,
-            i2s3_data_p,
+            i2s3_data_32_p,
             i2s2,
             i2s3,
         );
 
-        let (i2s2, i2s3) = test::slave_receive_transfer_block(
-            &mut shared_i2s3_driver,
-            i2s3_data_p,
-            i2s2,
-            i2s3,
-        );
+        let (i2s2, i2s3) =
+            test::slave_receive_transfer_block(&mut shared_i2s3_driver, i2s3_data_32_p, i2s2, i2s3);
 
-        let (i2s2, i2s3) = test::slave_receive_transfer_nb(
-            &mut shared_i2s3_driver,
-            i2s3_data_p,
-            i2s2,
-            i2s3,
-        );
+        let (i2s2, i2s3) =
+            test::slave_receive_transfer_nb(&mut shared_i2s3_driver, i2s3_data_32_p, i2s2, i2s3);
 
         let _ = (i2s2, i2s3);
         rprintln!("--- End of Tests");
@@ -309,17 +308,18 @@ mod app {
         priority = 4,
         binds = SPI2,
         local = [
-            i2s2_data_p,
-            i2s2_ctl_c
+            i2s2_data_16_p,
+            i2s2_data_32_p,
         ],
         shared = [i2s2_driver,exti]
     )]
     fn i2s2(cx: i2s2::Context) {
-        let i2s2_data_p = cx.local.i2s2_data_p;
+        let i2s2_data_16_p = cx.local.i2s2_data_16_p;
+        let i2s2_data_32_p = cx.local.i2s2_data_32_p;
         let mut i2s2_driver = cx.shared.i2s2_driver;
         let mut exti = cx.shared.exti;
         i2s2_driver.lock(|i2s2_driver| {
-            i2s2_driver.receive_interrupt_handler(&mut exti, i2s2_data_p);
+            i2s2_driver.receive_interrupt_handler(&mut exti, i2s2_data_16_p, i2s2_data_32_p);
         });
     }
 
@@ -327,17 +327,18 @@ mod app {
         priority = 4,
         binds = SPI3,
         local = [
-            i2s3_data_c,
-            i2s3_ctl_c
+            i2s3_data_16_c,
+            i2s3_data_32_c,
         ],
         shared = [i2s3_driver,exti]
     )]
     fn i2s3(cx: i2s3::Context) {
-        let i2s3_data_c = cx.local.i2s3_data_c;
+        let i2s3_data_16_c = cx.local.i2s3_data_16_c;
+        let i2s3_data_32_c = cx.local.i2s3_data_32_c;
         let mut i2s3_driver = cx.shared.i2s3_driver;
         let mut exti = cx.shared.exti;
         i2s3_driver.lock(|i2s3_driver| {
-            i2s3_driver.transmit_interrupt_handler(&mut exti, i2s3_data_c);
+            i2s3_driver.transmit_interrupt_handler(&mut exti, i2s3_data_16_c, i2s3_data_32_c);
         })
     }
 
