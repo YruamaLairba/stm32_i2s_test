@@ -292,6 +292,9 @@ mod app {
             i2s2,
             i2s3,
         );
+
+        let _ = (i2s2, i2s3);
+        rprintln!("--- End of Tests");
         #[allow(clippy::empty_loop)]
         loop {}
     }

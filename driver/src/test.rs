@@ -27,8 +27,63 @@ const FRM_32: &[(i32, i32)] = &[
     (0x30004000u32 as _, 0x50006000u32 as _),
     (0x70008000u32 as _, 0x9000A000u32 as _),
     (0xB000C000u32 as _, 0xD000E000u32 as _),
-    (0x01234567u32 as _, 0x89ABCDEFu32 as _),
+    //(0x01234567u32 as _, 0x89ABCDEFu32 as _),
 ];
+
+fn slice_contains<T>(slice:&[T], pattern:&[T]) -> bool where T : PartialEq<T> {
+    if pattern.len()>slice.len() {
+        return false;
+    }
+    for i in 0..=(slice.len() - pattern.len()) {
+        if slice[i..(pattern.len() + i)] == *pattern {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slice_contain() {
+        let slice = &[0,1,2,3,4];
+        let pat = &[3,4];
+        assert_eq!(slice_contains(slice,pat), true);
+    }
+
+    #[test]
+    fn slice_not_contain() {
+        let slice = &[0,1,2,3,4];
+        let pat = &[1,4];
+        assert_eq!(slice_contains(slice,pat), false);
+    }
+}
+
+fn check_result<const N:usize>(res: &[(u32, (i32, i32));N]) {
+    let pattern = &FRM_32[1..(FRM_32.len() - 1)];
+    let mut cmp = [(0,0);N];
+    for ((_,s),d) in res.iter().zip(cmp.iter_mut()){
+        *d = *s;
+    }
+    if slice_contains(&cmp,pattern) {
+        rprintln!("ok");
+    } else {
+        rprintln!("failed");
+        for (e, r) in FRM_32.iter().zip(res.iter()) {
+            let (t, r) = r;
+            rprintln!(
+                "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
+                e.0,
+                e.1,
+                t,
+                r.0,
+                r.1
+            );
+        }
+    }
+}
 
 pub fn master_receive_slave_transmit_driver_interrupt(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
@@ -41,9 +96,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!(
-        "--- Master Receive + Slave Transmit driver 32 bits with interrupt"
-    );
+    rprintln!("--- Master Receive + Slave Transmit driver 32 bits with interrupt");
 
     // Set up drivers
     let mut i2s2_driver = I2sDriverConfig::new_master()
@@ -121,17 +174,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -146,9 +189,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprintln!(
-        "--- Slave Receive + Master Transmit driver 32 bits with interrupt"
-    );
+    rprintln!("--- Slave Receive + Master Transmit driver 32 bits with interrupt");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
         .standard(Philips)
@@ -228,17 +269,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -321,17 +352,7 @@ pub fn master_transmit_transfer_block(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -387,6 +408,7 @@ pub fn master_transmit_transfer_nb(
     for data in FRM_32 {
         while i2s3_transfer.write(*data).is_err() {}
     }
+    while i2s3_transfer.write((0,0)).is_err() {}
 
     //block until test finish
     //while i2s2_data_c.len() < i2s2_data_c.capacity() {}
@@ -416,17 +438,7 @@ pub fn master_transmit_transfer_nb(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -505,17 +517,7 @@ pub fn slave_transmit_transfer_block(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -566,9 +568,10 @@ pub fn slave_transmit_transfer_nb(
 
     //blocking transmit
     rprintln!("{} Start i2s3 transfer", DWT::cycle_count());
-    for data in FRM_32[0..=7].iter() {
+    for data in FRM_32.iter() {
         while i2s3_transfer.write(*data).is_err() {}
     }
+    while i2s3_transfer.write((0,0)).is_err() {}
 
     //block until test finish
     //while i2s2_data_c.len() < i2s2_data_c.capacity() {}
@@ -596,17 +599,7 @@ pub fn slave_transmit_transfer_nb(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -693,17 +686,7 @@ pub fn master_receive_transfer_block(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -791,17 +774,7 @@ pub fn master_receive_transfer_nb(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -885,17 +858,7 @@ pub fn slave_receive_transfer_block(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
 
@@ -980,16 +943,6 @@ pub fn slave_receive_transfer_nb(
     }
 
     // display result
-    for (e, r) in FRM_32.iter().zip(res_32.iter()) {
-        let (t, r) = r;
-        rprintln!(
-            "{:#010x} {:#010x}, {:10} {:#010x} {:#010x}",
-            e.0,
-            e.1,
-            t,
-            r.0,
-            r.1
-        );
-    }
+    check_result(&res_32);
     (i2s2, i2s3)
 }
