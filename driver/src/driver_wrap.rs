@@ -223,11 +223,11 @@ fn _slave_receive_16bits_interrupt(
         let data = driver.read_data_register();
         match (*frame_state, status.chside()) {
             (LeftMsb, Channel::Left) => {
-                frame.0 |= data as u32;
+                frame.0 = data as u32;
                 *frame_state = RightMsb;
             }
             (RightMsb, Channel::Right) => {
-                frame.1 |= data as u32;
+                frame.1 = data as u32;
                 // defer sample processing to another task
                 let (l, r) = *frame;
                 data_16_p
@@ -336,19 +336,19 @@ fn _master_receive_16bits_interrupt<I: I2sPeripheral>(
         let data = driver.read_data_register();
         match (*frame_state, status.chside()) {
             (LeftMsb, Channel::Left) => {
-                frame.0 |= data as u32;
+                frame.0 = data as u32;
                 *frame_state = RightMsb;
             }
             (RightMsb, Channel::Right) => {
-                frame.1 |= data as u32;
+                frame.1 = data as u32;
                 // defer sample processing to another task
                 let (l, r) = *frame;
                 data_16_p
                     .enqueue((DWT::cycle_count(), (l as i16, r as i16)))
                     .ok();
-                if !data_16_p.ready() {
-                    driver.disable();
-                }
+                //if !data_16_p.ready() {
+                //    driver.disable();
+                //}
                 *frame_state = LeftMsb;
             }
             // in case of ovr this resynchronize at start of new frame
