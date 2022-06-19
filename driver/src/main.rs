@@ -293,6 +293,74 @@ mod app {
         let (i2s2, i2s3) =
             test::slave_receive_transfer_nb(&mut shared_i2s3_driver, i2s3_data_32_p, i2s2, i2s3);
 
+        let (i2s2, i2s3) = tests_16bits::master_receive_slave_transmit_driver_interrupt(
+            &mut shared_exti,
+            &mut shared_i2s2_driver,
+            &mut shared_i2s3_driver,
+            i2s2_data_16_c,
+            i2s3_data_16_p,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) = tests_16bits::slave_receive_master_transmit_driver_interrupt(
+            &mut shared_exti,
+            &mut shared_i2s2_driver,
+            &mut shared_i2s3_driver,
+            i2s2_data_16_c,
+            i2s3_data_16_p,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) = tests_16bits::master_transmit_transfer_block(
+            &mut shared_exti,
+            &mut shared_i2s2_driver,
+            i2s2_data_16_c,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) = tests_16bits::master_transmit_transfer_nb(
+            &mut shared_exti,
+            &mut shared_i2s2_driver,
+            i2s2_data_16_c,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) = tests_16bits::slave_transmit_transfer_block(
+            &mut shared_i2s2_driver,
+            i2s2_data_16_c,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) =
+            tests_16bits::slave_transmit_transfer_nb(&mut shared_i2s2_driver, i2s2_data_16_c, i2s2, i2s3);
+
+        let (i2s2, i2s3) = tests_16bits::master_receive_transfer_block(
+            &mut shared_exti,
+            &mut shared_i2s3_driver,
+            i2s3_data_16_p,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) = tests_16bits::master_receive_transfer_nb(
+            &mut shared_exti,
+            &mut shared_i2s3_driver,
+            i2s3_data_16_p,
+            i2s2,
+            i2s3,
+        );
+
+        let (i2s2, i2s3) =
+            tests_16bits::slave_receive_transfer_block(&mut shared_i2s3_driver, i2s3_data_16_p, i2s2, i2s3);
+
+        let (i2s2, i2s3) =
+            tests_16bits::slave_receive_transfer_nb(&mut shared_i2s3_driver, i2s3_data_16_p, i2s2, i2s3);
+
         let _ = (i2s2, i2s3);
         rprintln!("--- End of Tests");
         #[allow(clippy::empty_loop)]
