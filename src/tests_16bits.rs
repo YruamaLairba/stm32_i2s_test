@@ -102,7 +102,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     // Set up drivers
     let mut i2s2_driver = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1)
@@ -113,7 +113,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 
     let mut i2s3_driver = I2sDriverConfig::new_slave()
         .transmit()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .i2s_driver(i2s3);
     i2s3_driver.set_tx_interrupt(true);
@@ -185,7 +185,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     rprint!("Slave Receive + Master Transmit driver 16 bits with interrupt");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -263,14 +263,14 @@ pub fn master_transmit_transfer_block(
     rprint!("Master Transmit Transfer 16 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -331,14 +331,14 @@ pub fn master_transmit_transfer_nb(
     rprint!("Master Transmit Transfer 16 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -404,14 +404,14 @@ pub fn slave_transmit_transfer_block(
     rprint!("Slave Transmit Transfer 16 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -468,14 +468,14 @@ pub fn slave_transmit_transfer_nb(
     rprint!("Slave Transmit Transfer 16 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -543,14 +543,14 @@ pub fn master_receive_transfer_block(
     rprint!("Master Receive Transfer 16 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -616,14 +616,14 @@ pub fn master_receive_transfer_nb(
     rprint!("Master Receive Transfer 16 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -689,14 +689,14 @@ pub fn slave_receive_transfer_block(
     rprint!("Slave Receive Transfer 16 bits block");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
@@ -758,14 +758,14 @@ pub fn slave_receive_transfer_nb(
     rprint!("Slave Receive Transfer 16 bits nb");
     let drv_cfg_base = I2sDriverConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(DataFormat::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);
 
     let transfer_cfg_base = I2sTransferConfig::new_master()
         .receive()
-        .standard(Philips)
+        .standard(I2sStd)
         .data_format(marker::Data16Channel32)
         .master_clock(true)
         .request_frequency(1);

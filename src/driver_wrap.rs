@@ -8,7 +8,7 @@ use crate::hal::pac::EXTI;
 use heapless::spsc::*;
 use rtic::mutex::prelude::*;
 
-type I2sStd = Philips;
+pub use crate::hal::i2s::stm32_i2s_v12x::marker::Philips as I2sStd;
 
 // Part of the frame we currently transmit or receive
 #[derive(Copy, Clone)]
