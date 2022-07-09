@@ -98,8 +98,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
 ) -> (I2s2, I2s3) {
     let mut res_32 = [(0, (0, 0)); 7];
 
-    rprint!("Master Receive + Slave Transmit driver 32 bits with interrupt");
-
+    rprint!("Reset clock test ... ");
     // Set up drivers
     let mut i2s2_driver = I2sDriverConfig::new_master()
         .receive()
@@ -108,7 +107,31 @@ pub fn master_receive_slave_transmit_driver_interrupt(
         .master_clock(true)
         .request_frequency(1)
         .i2s_driver(i2s2);
+
+    i2s2_driver.enable();
+    for _ in 0..2 {
+        while !i2s2_driver.status().rxne() {}
+        i2s2_driver.read_data_register();
+    }
+    i2s2_driver.reset_clocks();
+    loop {
+        let status = i2s2_driver.status();
+        if status.rxne() {
+            if status.chside() == Channel::Left {
+                rprintln!("ok");
+            } else {
+                rprintln!("failed");
+                panic!("All subsequent test would fail")
+            }
+            break;
+        }
+    }
+    i2s2_driver.disable();
+    i2s2_driver.reset_clocks();
+
+    rprint!("Master Receive + Slave Transmit driver 32 bits with interrupt");
     rprint!(", SR {} ... ", i2s2_driver.sample_rate());
+
     i2s2_driver.set_rx_interrupt(true);
     i2s2_driver.set_error_interrupt(true);
 
