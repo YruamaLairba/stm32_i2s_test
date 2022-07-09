@@ -134,7 +134,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
         .lock(|exti, shared_i2s2_driver, shared_i2s3_driver| {
             i2s2_driver.enable();
             shared_i2s2_driver.replace(MasterReceive16bits(i2s2_driver));
-            let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+            let ws_pin = i2s3_driver.ws_pin_mut();
             ws_pin.enable_interrupt(exti);
             shared_i2s3_driver.replace(SlaveTransmit16bits(i2s3_driver));
         });
@@ -154,7 +154,7 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     let i2s3 = (&mut shared_i2s3_driver, &mut shared_exti).lock(|i2s3_driver, exti| {
         if let Some(SlaveTransmit16bits(mut i2s3_driver)) = i2s3_driver.take() {
             i2s3_driver.disable();
-            let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+            let ws_pin = i2s3_driver.ws_pin_mut();
             ws_pin.disable_interrupt(exti);
             i2s3_driver.release()
         } else {
@@ -228,7 +228,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
         .lock(|exti, shared_i2s2_driver, shared_i2s3_driver| {
             i2s3_driver.enable();
             shared_i2s3_driver.replace(MasterTransmit16bits(i2s3_driver));
-            let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+            let ws_pin = i2s2_driver.ws_pin_mut();
             ws_pin.enable_interrupt(exti);
             shared_i2s2_driver.replace(SlaveReceive16bits(i2s2_driver));
         });
@@ -240,7 +240,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     let i2s2 = (&mut shared_i2s2_driver, &mut shared_exti).lock(|i2s2_driver, exti| {
         if let Some(SlaveReceive16bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
-            let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+            let ws_pin = i2s2_driver.ws_pin_mut();
             ws_pin.disable_interrupt(exti);
             i2s2_driver.release()
         } else {
@@ -314,7 +314,7 @@ pub fn master_transmit_transfer_block(
 
     // start drivers
     (&mut shared_exti, &mut shared_i2s2_driver).lock(|exti, shared_i2s2_driver| {
-        let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+        let ws_pin = i2s2_driver.ws_pin_mut();
         ws_pin.enable_interrupt(exti);
         shared_i2s2_driver.replace(SlaveReceive16bits(i2s2_driver));
     });
@@ -329,7 +329,7 @@ pub fn master_transmit_transfer_block(
     let i2s2 = (&mut shared_i2s2_driver, &mut shared_exti).lock(|i2s2_driver, exti| {
         if let Some(SlaveReceive16bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
-            let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+            let ws_pin = i2s2_driver.ws_pin_mut();
             ws_pin.disable_interrupt(exti);
             i2s2_driver.release()
         } else {
@@ -395,7 +395,7 @@ pub fn master_transmit_transfer_nb(
 
     // start drivers
     (&mut shared_exti, &mut shared_i2s2_driver).lock(|exti, shared_i2s2_driver| {
-        let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+        let ws_pin = i2s2_driver.ws_pin_mut();
         ws_pin.enable_interrupt(exti);
         shared_i2s2_driver.replace(SlaveReceive16bits(i2s2_driver));
     });
@@ -413,7 +413,7 @@ pub fn master_transmit_transfer_nb(
     let i2s2 = (&mut shared_i2s2_driver, &mut shared_exti).lock(|i2s2_driver, exti| {
         if let Some(SlaveReceive16bits(mut i2s2_driver)) = i2s2_driver.take() {
             i2s2_driver.disable();
-            let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+            let ws_pin = i2s2_driver.ws_pin_mut();
             ws_pin.disable_interrupt(exti);
             i2s2_driver.release()
         } else {
@@ -651,7 +651,7 @@ pub fn master_receive_transfer_block(
 
     // start drivers
     (&mut shared_i2s3_driver, &mut shared_exti).lock(|shared_i2s3_driver, exti| {
-        let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+        let ws_pin = i2s3_driver.ws_pin_mut();
         ws_pin.enable_interrupt(exti);
         shared_i2s3_driver.replace(SlaveTransmit16bits(i2s3_driver));
     });
@@ -737,7 +737,7 @@ pub fn master_receive_transfer_nb(
 
     // start drivers
     (&mut shared_i2s3_driver, &mut shared_exti).lock(|shared_i2s3_driver, exti| {
-        let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+        let ws_pin = i2s3_driver.ws_pin_mut();
         ws_pin.enable_interrupt(exti);
         shared_i2s3_driver.replace(SlaveTransmit16bits(i2s3_driver));
     });

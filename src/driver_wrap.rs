@@ -71,12 +71,7 @@ fn _slave_transmit_16bits_interrupt(
     if status.fre() {
         log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
         driver.disable();
-        exti.lock(|exti| {
-            driver
-                .i2s_peripheral_mut()
-                .ws_pin_mut()
-                .enable_interrupt(exti)
-        })
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
     if status.udr() {
         log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
@@ -126,12 +121,7 @@ fn _slave_transmit_32bits_interrupt(
     if status.fre() {
         log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
         driver.disable();
-        exti.lock(|exti| {
-            driver
-                .i2s_peripheral_mut()
-                .ws_pin_mut()
-                .enable_interrupt(exti)
-        })
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
     if status.udr() {
         log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
@@ -248,12 +238,7 @@ fn _slave_receive_16bits_interrupt(
     if status.fre() {
         log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
         driver.disable();
-        exti.lock(|exti| {
-            driver
-                .i2s_peripheral_mut()
-                .ws_pin_mut()
-                .enable_interrupt(exti)
-        })
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
     if status.ovr() {
         log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
@@ -309,12 +294,7 @@ fn _slave_receive_32bits_interrupt(
     if status.fre() {
         log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
         driver.disable();
-        exti.lock(|exti| {
-            driver
-                .i2s_peripheral_mut()
-                .ws_pin_mut()
-                .enable_interrupt(exti)
-        })
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
     if status.ovr() {
         log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
@@ -483,7 +463,7 @@ impl DriverWrap<I2s3> {
     pub fn transmit_exti_handler(&mut self, exti: &mut EXTI) {
         match self.drv {
             Some(SlaveTransmit16bits(ref mut i2s3_driver)) => {
-                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+                let ws_pin = i2s3_driver.ws_pin_mut();
                 ws_pin.clear_interrupt_pending_bit();
                 if ws_pin.is_high() {
                     ws_pin.disable_interrupt(exti);
@@ -492,7 +472,7 @@ impl DriverWrap<I2s3> {
                 }
             }
             Some(SlaveTransmit32bits(ref mut i2s3_driver)) => {
-                let ws_pin = i2s3_driver.i2s_peripheral_mut().ws_pin_mut();
+                let ws_pin = i2s3_driver.ws_pin_mut();
                 ws_pin.clear_interrupt_pending_bit();
                 if ws_pin.is_high() {
                     ws_pin.disable_interrupt(exti);
@@ -546,7 +526,7 @@ impl DriverWrap<I2s2> {
     pub fn receive_exti_handler(&mut self, exti: &mut EXTI) {
         match self.drv {
             Some(SlaveReceive16bits(ref mut i2s2_driver)) => {
-                let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+                let ws_pin = i2s2_driver.ws_pin_mut();
                 ws_pin.clear_interrupt_pending_bit();
                 if ws_pin.is_high() {
                     ws_pin.disable_interrupt(exti);
@@ -555,7 +535,7 @@ impl DriverWrap<I2s2> {
                 }
             }
             Some(SlaveReceive32bits(ref mut i2s2_driver)) => {
-                let ws_pin = i2s2_driver.i2s_peripheral_mut().ws_pin_mut();
+                let ws_pin = i2s2_driver.ws_pin_mut();
                 ws_pin.clear_interrupt_pending_bit();
                 if ws_pin.is_high() {
                     ws_pin.disable_interrupt(exti);
