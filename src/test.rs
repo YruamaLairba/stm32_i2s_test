@@ -2,7 +2,7 @@
 
 use crate::app::{I2s2, I2s3};
 use heapless::spsc::*;
-use rtt_target::{rprint,rprintln};
+use rtt_target::{rprint, rprintln};
 
 use crate::hal;
 
@@ -10,8 +10,7 @@ use hal::gpio::ExtiPin;
 use hal::i2s::stm32_i2s_v12x::driver::{DataFormat, *};
 use hal::i2s::stm32_i2s_v12x::transfer::*;
 use hal::pac::DWT;
-use hal::pac::{EXTI, RCC, SPI2, SPI3};
-use hal::rcc::Reset;
+use hal::pac::EXTI;
 
 use rtic::mutex::prelude::*;
 
@@ -30,8 +29,11 @@ const FRM_32: &[(i32, i32)] = &[
     //(0x01234567u32 as _, 0x89ABCDEFu32 as _),
 ];
 
-fn slice_contains<T>(slice:&[T], pattern:&[T]) -> bool where T : PartialEq<T> {
-    if pattern.len()>slice.len() {
+fn slice_contains<T>(slice: &[T], pattern: &[T]) -> bool
+where
+    T: PartialEq<T>,
+{
+    if pattern.len() > slice.len() {
         return false;
     }
     for i in 0..=(slice.len() - pattern.len()) {
@@ -48,26 +50,26 @@ mod tests {
 
     #[test]
     fn slice_contain() {
-        let slice = &[0,1,2,3,4];
-        let pat = &[3,4];
-        assert_eq!(slice_contains(slice,pat), true);
+        let slice = &[0, 1, 2, 3, 4];
+        let pat = &[3, 4];
+        assert_eq!(slice_contains(slice, pat), true);
     }
 
     #[test]
     fn slice_not_contain() {
-        let slice = &[0,1,2,3,4];
-        let pat = &[1,4];
-        assert_eq!(slice_contains(slice,pat), false);
+        let slice = &[0, 1, 2, 3, 4];
+        let pat = &[1, 4];
+        assert_eq!(slice_contains(slice, pat), false);
     }
 }
 
-fn check_result<const N:usize>(res: &[(u32, (i32, i32));N]) {
+fn check_result<const N: usize>(res: &[(u32, (i32, i32)); N]) {
     let pattern = &FRM_32[1..(FRM_32.len() - 1)];
-    let mut cmp = [(0,0);N];
-    for ((_,s),d) in res.iter().zip(cmp.iter_mut()){
+    let mut cmp = [(0, 0); N];
+    for ((_, s), d) in res.iter().zip(cmp.iter_mut()) {
         *d = *s;
     }
-    if slice_contains(&cmp,pattern) {
+    if slice_contains(&cmp, pattern) {
         rprintln!("ok");
     } else {
         rprintln!("failed");
@@ -160,13 +162,6 @@ pub fn master_receive_slave_transmit_driver_interrupt(
         }
     });
 
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // get test result
     for e in res_32.iter_mut() {
         *e = i2s2_data_c.dequeue().unwrap_or_default();
@@ -195,13 +190,6 @@ pub fn slave_receive_master_transmit_driver_interrupt(
         .data_format(DataFormat::Data32Channel32)
         .master_clock(true)
         .request_frequency(1);
-
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // Set up drivers
     let mut i2s2_driver = drv_cfg_base.to_slave().receive().i2s_driver(i2s2);
@@ -254,13 +242,6 @@ pub fn slave_receive_master_transmit_driver_interrupt(
         }
     });
 
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // get test result
     for e in res_32.iter_mut() {
         *e = i2s2_data_c.dequeue().unwrap_or_default();
@@ -295,13 +276,6 @@ pub fn master_transmit_transfer_block(
         .master_clock(true)
         .request_frequency(1);
 
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // Set up drivers and transfert
     let mut i2s2_driver = drv_cfg_base.to_slave().receive().i2s_driver(i2s2);
     i2s2_driver.set_rx_interrupt(true);
@@ -335,12 +309,6 @@ pub fn master_transmit_transfer_block(
         }
     });
     let i2s3 = i2s3_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // get test result
     for e in res_32.iter_mut() {
@@ -376,13 +344,6 @@ pub fn master_transmit_transfer_nb(
         .master_clock(true)
         .request_frequency(1);
 
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // Set up drivers and transfert
     let mut i2s2_driver = drv_cfg_base.to_slave().receive().i2s_driver(i2s2);
     i2s2_driver.set_rx_interrupt(true);
@@ -402,7 +363,7 @@ pub fn master_transmit_transfer_nb(
     for data in FRM_32 {
         while i2s3_transfer.write(*data).is_err() {}
     }
-    while i2s3_transfer.write((0,0)).is_err() {}
+    while i2s3_transfer.write((0, 0)).is_err() {}
 
     //block until test finish
     //while i2s2_data_c.len() < i2s2_data_c.capacity() {}
@@ -419,12 +380,6 @@ pub fn master_transmit_transfer_nb(
         }
     });
     let i2s3 = i2s3_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // get test result
     for e in res_32.iter_mut() {
@@ -459,13 +414,6 @@ pub fn slave_transmit_transfer_block(
         .master_clock(true)
         .request_frequency(1);
 
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // Set up drivers and transfert
     let mut i2s2_driver = drv_cfg_base.receive().i2s_driver(i2s2);
     rprint!(", SR {} ... ", i2s2_driver.sample_rate());
@@ -496,12 +444,6 @@ pub fn slave_transmit_transfer_block(
         }
     });
     let i2s3 = i2s3_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // get test result
     for e in res_32.iter_mut() {
@@ -536,13 +478,6 @@ pub fn slave_transmit_transfer_nb(
         .master_clock(true)
         .request_frequency(1);
 
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // Set up drivers and transfert
     let mut i2s2_driver = drv_cfg_base.receive().i2s_driver(i2s2);
     rprint!(", SR {} ... ", i2s2_driver.sample_rate());
@@ -561,7 +496,7 @@ pub fn slave_transmit_transfer_nb(
     for data in FRM_32.iter() {
         while i2s3_transfer.write(*data).is_err() {}
     }
-    while i2s3_transfer.write((0,0)).is_err() {}
+    while i2s3_transfer.write((0, 0)).is_err() {}
 
     //block until test finish
     //while i2s2_data_c.len() < i2s2_data_c.capacity() {}
@@ -576,12 +511,6 @@ pub fn slave_transmit_transfer_nb(
         }
     });
     let i2s3 = i2s3_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // get test result
     for e in res_32.iter_mut() {
@@ -617,13 +546,6 @@ pub fn master_receive_transfer_block(
         .master_clock(true)
         .request_frequency(1);
 
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // Set up drivers and transfer
     let mut i2s2_transfer = transfer_cfg_base.receive().i2s_transfer(i2s2);
     rprint!(", SR {} ... ", i2s2_transfer.sample_rate());
@@ -666,12 +588,6 @@ pub fn master_receive_transfer_block(
         }
     });
     let i2s2 = i2s2_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // display result
     check_result(&res_32);
@@ -702,13 +618,6 @@ pub fn master_receive_transfer_nb(
         .master_clock(true)
         .request_frequency(1);
 
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
-
     // Set up drivers and transfer
     let mut i2s2_transfer = transfer_cfg_base.receive().i2s_transfer(i2s2);
     rprint!(", SR {} ... ", i2s2_transfer.sample_rate());
@@ -752,12 +661,6 @@ pub fn master_receive_transfer_nb(
         }
     });
     let i2s2 = i2s2_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // display result
     check_result(&res_32);
@@ -786,13 +689,6 @@ pub fn slave_receive_transfer_block(
         .data_format(marker::Data32Channel32)
         .master_clock(true)
         .request_frequency(1);
-
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // Set up drivers and transfer
     let mut i2s2_transfer = transfer_cfg_base.to_slave().receive().i2s_transfer(i2s2);
@@ -834,12 +730,6 @@ pub fn slave_receive_transfer_block(
         }
     });
     let i2s2 = i2s2_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // display result
     check_result(&res_32);
@@ -868,13 +758,6 @@ pub fn slave_receive_transfer_nb(
         .data_format(marker::Data32Channel32)
         .master_clock(true)
         .request_frequency(1);
-
-    // reset is2 peripheral
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // Set up drivers and transfer
     let mut i2s2_transfer = transfer_cfg_base.to_slave().receive().i2s_transfer(i2s2);
@@ -917,12 +800,6 @@ pub fn slave_receive_transfer_nb(
         }
     });
     let i2s2 = i2s2_transfer.release();
-    //reset I2s peripherals
-    unsafe {
-        let rcc = &(*RCC::ptr());
-        SPI2::reset(rcc);
-        SPI3::reset(rcc);
-    }
 
     // display result
     check_result(&res_32);
