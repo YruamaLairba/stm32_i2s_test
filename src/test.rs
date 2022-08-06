@@ -405,7 +405,7 @@ pub fn master_transmit_transfer_nb(
     (i2s2, i2s3)
 }
 
-#[cfg(FALSE)]
+//#[cfg(FALSE)]
 pub fn slave_transmit_transfer_block(
     shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
@@ -470,7 +470,7 @@ pub fn slave_transmit_transfer_block(
     (i2s2, i2s3)
 }
 
-#[cfg(FALSE)]
+//#[cfg(FALSE)]
 pub fn slave_transmit_transfer_nb(
     shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i32, i32)), 8_usize>,
@@ -538,7 +538,7 @@ pub fn slave_transmit_transfer_nb(
     (i2s2, i2s3)
 }
 
-#[cfg(FALSE)]
+//#[cfg(FALSE)]
 pub fn master_receive_transfer_block(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
@@ -611,7 +611,7 @@ pub fn master_receive_transfer_block(
     (i2s2, i2s3)
 }
 
-#[cfg(FALSE)]
+//#[cfg(FALSE)]
 pub fn master_receive_transfer_nb(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
@@ -685,7 +685,7 @@ pub fn master_receive_transfer_nb(
     (i2s2, i2s3)
 }
 
-#[cfg(FALSE)]
+//#[cfg(FALSE)]
 pub fn slave_receive_transfer_block(
     shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,
@@ -755,7 +755,7 @@ pub fn slave_receive_transfer_block(
     (i2s2, i2s3)
 }
 
-#[cfg(FALSE)]
+//#[cfg(FALSE)]
 pub fn slave_receive_transfer_nb(
     shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
     i2s3_data_p: &mut Producer<'static, (i32, i32), 8_usize>,

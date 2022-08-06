@@ -265,7 +265,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = test::slave_transmit_transfer_block(
             &mut shared_i2s2_driver,
             i2s2_data_32_c,
@@ -273,11 +273,11 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) =
             test::slave_transmit_transfer_nb(&mut shared_i2s2_driver, i2s2_data_32_c, i2s2, i2s3);
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = test::master_receive_transfer_block(
             &mut shared_exti,
             &mut shared_i2s3_driver,
@@ -286,7 +286,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = test::master_receive_transfer_nb(
             &mut shared_exti,
             &mut shared_i2s3_driver,
@@ -343,7 +343,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = tests_16bits::slave_transmit_transfer_block(
             &mut shared_i2s2_driver,
             i2s2_data_16_c,
@@ -351,7 +351,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = tests_16bits::slave_transmit_transfer_nb(
             &mut shared_i2s2_driver,
             i2s2_data_16_c,
@@ -359,7 +359,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = tests_16bits::master_receive_transfer_block(
             &mut shared_exti,
             &mut shared_i2s3_driver,
@@ -368,7 +368,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = tests_16bits::master_receive_transfer_nb(
             &mut shared_exti,
             &mut shared_i2s3_driver,
@@ -377,7 +377,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = tests_16bits::slave_receive_transfer_block(
             &mut shared_i2s3_driver,
             i2s3_data_16_p,
@@ -385,7 +385,7 @@ mod app {
             i2s3,
         );
 
-        #[cfg(FALSE)]
+        //#[cfg(FALSE)]
         let (i2s2, i2s3) = tests_16bits::slave_receive_transfer_nb(
             &mut shared_i2s3_driver,
             i2s3_data_16_p,
