@@ -131,11 +131,12 @@ pub fn master_receive_slave_transmit_driver_interrupt(
         &mut shared_i2s3_driver,
     )
         .lock(|exti, shared_i2s2_driver, shared_i2s3_driver| {
+            i2s3_driver.enable();
+            //let ws_pin = i2s3_driver.ws_pin_mut();
+            //ws_pin.enable_interrupt(exti);
+            shared_i2s3_driver.replace(SlaveTransmit16bits(i2s3_driver));
             i2s2_driver.enable();
             shared_i2s2_driver.replace(MasterReceive16bits(i2s2_driver));
-            let ws_pin = i2s3_driver.ws_pin_mut();
-            ws_pin.enable_interrupt(exti);
-            shared_i2s3_driver.replace(SlaveTransmit16bits(i2s3_driver));
         });
 
     //block until test finish
@@ -165,6 +166,9 @@ pub fn master_receive_slave_transmit_driver_interrupt(
     for e in res.iter_mut() {
         *e = i2s2_data_c.dequeue().unwrap_or_default();
     }
+
+    //flush result queue
+    while i2s2_data_c.dequeue().is_some(){}
 
     // display result
     check_result(&res);
@@ -251,6 +255,7 @@ pub fn slave_receive_master_transmit_driver_interrupt(
     (i2s2, i2s3)
 }
 
+//#[cfg(FALSE)]
 pub fn master_transmit_transfer_block(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
@@ -319,6 +324,7 @@ pub fn master_transmit_transfer_block(
     (i2s2, i2s3)
 }
 
+//#[cfg(FALSE)]
 pub fn master_transmit_transfer_nb(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
@@ -390,6 +396,7 @@ pub fn master_transmit_transfer_nb(
     (i2s2, i2s3)
 }
 
+#[cfg(FALSE)]
 pub fn slave_transmit_transfer_block(
     shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i16, i16)), 8_usize>,
@@ -457,6 +464,7 @@ pub fn slave_transmit_transfer_block(
     (i2s2, i2s3)
 }
 
+#[cfg(FALSE)]
 pub fn slave_transmit_transfer_nb(
     shared_i2s2_driver: &mut impl Mutex<T = DriverWrap<I2s2>>,
     i2s2_data_c: &mut Consumer<'static, (u32, (i16, i16)), 8_usize>,
@@ -505,7 +513,8 @@ pub fn slave_transmit_transfer_nb(
             }
         }
     }
-    //while i2s3_transfer.write((0xFF,0xFE)).is_err() {}
+    // padding
+    while i2s3_transfer.write((0xFF,0xFE)).is_err() {}
     //while i2s3_transfer.write((0xDD,0xCC)).is_err() {}
 
     //block until test finish
@@ -531,6 +540,7 @@ pub fn slave_transmit_transfer_nb(
     (i2s2, i2s3)
 }
 
+#[cfg(FALSE)]
 pub fn master_receive_transfer_block(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
@@ -604,6 +614,7 @@ pub fn master_receive_transfer_block(
     (i2s2, i2s3)
 }
 
+#[cfg(FALSE)]
 pub fn master_receive_transfer_nb(
     mut shared_exti: &mut impl Mutex<T = EXTI>,
     mut shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
@@ -678,6 +689,7 @@ pub fn master_receive_transfer_nb(
     (i2s2, i2s3)
 }
 
+#[cfg(FALSE)]
 pub fn slave_receive_transfer_block(
     shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
     i2s3_data_p: &mut Producer<'static, (i16, i16), 8_usize>,
@@ -747,6 +759,7 @@ pub fn slave_receive_transfer_block(
     (i2s2, i2s3)
 }
 
+#[cfg(FALSE)]
 pub fn slave_receive_transfer_nb(
     shared_i2s3_driver: &mut impl Mutex<T = DriverWrap<I2s3>>,
     i2s3_data_p: &mut Producer<'static, (i16, i16), 8_usize>,

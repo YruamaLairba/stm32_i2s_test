@@ -11,7 +11,7 @@ use rtic::mutex::prelude::*;
 pub use crate::hal::i2s::stm32_i2s_v12x::marker::Philips as I2sStd;
 
 // Part of the frame we currently transmit or receive
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum FrameState {
     LeftMsb,
     LeftLsb,
@@ -49,22 +49,19 @@ fn _slave_transmit_16bits_interrupt(
     // it's better to write data first to avoid to trigger udr flag
     if status.txe() {
         let data;
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        match *frame_state {
+            LeftMsb => {
                 let (l, r) = data_16_c.dequeue().unwrap_or_default();
                 *frame = (l as u32, r as u32);
                 data = (frame.0 & 0xFFFF) as u16;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 data = (frame.1 & 0xFFFF) as u16;
                 *frame_state = LeftMsb;
             }
             // in case of udr this resynchronize tracked and actual channel
-            _ => {
-                *frame_state = LeftMsb;
-                data = 0; //garbage data to avoid additional underrrun
-            }
+            _ => unreachable!(),
         }
         driver.write_data_register(data);
     }
@@ -75,8 +72,8 @@ fn _slave_transmit_16bits_interrupt(
     }
     if status.udr() {
         log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
-        driver.status();
-        driver.write_data_register(0);
+        driver.disable();
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
 }
 
@@ -91,29 +88,36 @@ fn _slave_transmit_32bits_interrupt(
     // it's better to write data first to avoid to trigger udr flag
     if status.txe() {
         let data;
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        if status.chside() == Channel::Right && *frame_state == LeftMsb {
+            log::spawn(DWT::cycle_count(), "Slv tracked LeftMsb, status Right").ok();
+        }
+        if status.chside() == Channel::Right && *frame_state == LeftLsb {
+            log::spawn(DWT::cycle_count(), "Slv tracked LeftLsb, status Right").ok();
+        }
+        if status.chside() == Channel::Left && *frame_state == RightMsb {
+            log::spawn(DWT::cycle_count(), "Slv tracked RightMsb, status Left").ok();
+        }
+        if status.chside() == Channel::Left && *frame_state == RightLsb {
+            log::spawn(DWT::cycle_count(), "Slv tracked RightLsb, status Left").ok();
+        }
+        match *frame_state {
+            LeftMsb => {
                 let (l, r) = data_32_c.dequeue().unwrap_or_default();
                 *frame = (l as u32, r as u32);
                 data = (frame.0 >> 16) as u16;
                 *frame_state = LeftLsb;
             }
-            (LeftLsb, Channel::Left) => {
+            LeftLsb => {
                 data = (frame.0 & 0xFFFF) as u16;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 data = (frame.1 >> 16) as u16;
                 *frame_state = RightLsb;
             }
-            (RightLsb, Channel::Right) => {
+            RightLsb => {
                 data = (frame.1 & 0xFFFF) as u16;
                 *frame_state = LeftMsb;
-            }
-            // in case of udr this resynchronize tracked and actual channel
-            _ => {
-                *frame_state = LeftMsb;
-                data = 0; //garbage data to avoid additional underrrun
             }
         }
         driver.write_data_register(data);
@@ -121,12 +125,15 @@ fn _slave_transmit_32bits_interrupt(
     if status.fre() {
         log::spawn(DWT::cycle_count(), "i2s3 Frame error").ok();
         driver.disable();
+        *frame_state = LeftMsb;
         exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
     if status.udr() {
         log::spawn(DWT::cycle_count(), "i2s3 udr").ok();
+        driver.disable();
         driver.status();
-        driver.write_data_register(0);
+        *frame_state = LeftMsb;
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
 }
 
@@ -140,22 +147,19 @@ fn _master_transmit_16bits_interrupt<I: I2sPeripheral>(
     // it's better to write data first to avoid to trigger udr flag
     if status.txe() {
         let data;
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        match *frame_state {
+            LeftMsb => {
                 let (l, r) = data_16_c.dequeue().unwrap_or_default();
                 *frame = (l as u32, r as u32);
                 data = (frame.0 & 0xFFFF) as u16;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 data = (frame.1 & 0xFFFF) as u16;
                 *frame_state = LeftMsb;
             }
             // in case of udr this resynchronize tracked and actual channel
-            _ => {
-                *frame_state = LeftMsb;
-                data = 0; //garbage data to avoid additional underrrun
-            }
+            _ => unreachable!(),
         }
         driver.write_data_register(data);
     }
@@ -171,29 +175,24 @@ fn _master_transmit_32bits_interrupt<I: I2sPeripheral>(
     // it's better to write data first to avoid to trigger udr flag
     if status.txe() {
         let data;
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        match *frame_state {
+            LeftMsb => {
                 let (l, r) = data_32_c.dequeue().unwrap_or_default();
                 *frame = (l as u32, r as u32);
                 data = (frame.0 >> 16) as u16;
                 *frame_state = LeftLsb;
             }
-            (LeftLsb, Channel::Left) => {
+            LeftLsb => {
                 data = (frame.0 & 0xFFFF) as u16;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 data = (frame.1 >> 16) as u16;
                 *frame_state = RightLsb;
             }
-            (RightLsb, Channel::Right) => {
+            RightLsb => {
                 data = (frame.1 & 0xFFFF) as u16;
                 *frame_state = LeftMsb;
-            }
-            // in case of udr this resynchronize tracked and actual channel
-            _ => {
-                *frame_state = LeftMsb;
-                data = 0; //garbage data to avoid additional underrrun
             }
         }
         driver.write_data_register(data);
@@ -211,12 +210,12 @@ fn _slave_receive_16bits_interrupt(
     // It's better to read first to avoid triggering ovr flag
     if status.rxne() {
         let data = driver.read_data_register();
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        match *frame_state {
+            LeftMsb => {
                 frame.0 = data as u32;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 frame.1 = data as u32;
                 // defer sample processing to another task
                 let (l, r) = *frame;
@@ -228,11 +227,7 @@ fn _slave_receive_16bits_interrupt(
                 }
                 *frame_state = LeftMsb;
             }
-            // in case of ovr this resynchronize at start of new frame
-            _ => {
-                log::spawn(DWT::cycle_count(), "Slave Receive Channel Err").ok();
-                *frame_state = LeftMsb;
-            }
+            _ => (),
         }
     }
     if status.fre() {
@@ -242,9 +237,8 @@ fn _slave_receive_16bits_interrupt(
     }
     if status.ovr() {
         log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
-        // sequence to delete ovr flag
-        driver.read_data_register();
-        driver.status();
+        driver.disable();
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
 }
 
@@ -259,20 +253,20 @@ fn _slave_receive_32bits_interrupt(
     // It's better to read first to avoid triggering ovr flag
     if status.rxne() {
         let data = driver.read_data_register();
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        match *frame_state {
+            LeftMsb => {
                 frame.0 = (data as u32) << 16;
                 *frame_state = LeftLsb;
             }
-            (LeftLsb, Channel::Left) => {
+            LeftLsb => {
                 frame.0 |= data as u32;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 frame.1 = (data as u32) << 16;
                 *frame_state = RightLsb;
             }
-            (RightLsb, Channel::Right) => {
+            RightLsb => {
                 frame.1 |= data as u32;
                 // defer sample processing to another task
                 let (l, r) = *frame;
@@ -284,11 +278,6 @@ fn _slave_receive_32bits_interrupt(
                 }
                 *frame_state = LeftMsb;
             }
-            // in case of ovr this resynchronize at start of new frame
-            _ => {
-                log::spawn(DWT::cycle_count(), "Slave Receive Channel Err").ok();
-                *frame_state = LeftMsb;
-            }
         }
     }
     if status.fre() {
@@ -298,9 +287,8 @@ fn _slave_receive_32bits_interrupt(
     }
     if status.ovr() {
         log::spawn(DWT::cycle_count(), "i2s2 Overrun").ok();
-        // sequence to delete ovr flag
-        driver.read_data_register();
-        driver.status();
+        driver.disable();
+        exti.lock(|exti| driver.ws_pin_mut().enable_interrupt(exti))
     }
 }
 
@@ -314,12 +302,12 @@ fn _master_receive_16bits_interrupt<I: I2sPeripheral>(
     // It's better to read first to avoid triggering ovr flag
     if status.rxne() {
         let data = driver.read_data_register();
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        match *frame_state {
+            LeftMsb => {
                 frame.0 = data as u32;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 frame.1 = data as u32;
                 // defer sample processing to another task
                 let (l, r) = *frame;
@@ -331,18 +319,12 @@ fn _master_receive_16bits_interrupt<I: I2sPeripheral>(
                 //}
                 *frame_state = LeftMsb;
             }
-            // in case of ovr this resynchronize at start of new frame
-            _ => {
-                log::spawn(DWT::cycle_count(), "Master Receive Channel Err").ok();
-                *frame_state = LeftMsb;
-            }
+            _ => (),
         }
     }
     if status.ovr() {
         log::spawn(DWT::cycle_count(), "Master Receive Overrun").ok();
-        // sequence to delete ovr flag
-        driver.read_data_register();
-        driver.status();
+        driver.reset_clocks();
     }
 }
 
@@ -356,20 +338,32 @@ fn _master_receive_32bits_interrupt<I: I2sPeripheral>(
     // It's better to read first to avoid triggering ovr flag
     if status.rxne() {
         let data = driver.read_data_register();
-        match (*frame_state, status.chside()) {
-            (LeftMsb, Channel::Left) => {
+        if status.chside() == Channel::Right && *frame_state == LeftMsb {
+            log::spawn(DWT::cycle_count(), "Mstr tracked LeftMsb, status Right").ok();
+        }
+        if status.chside() == Channel::Right && *frame_state == LeftLsb {
+            log::spawn(DWT::cycle_count(), "Mstr tracked LeftLsb, status Right").ok();
+        }
+        if status.chside() == Channel::Left && *frame_state == RightMsb {
+            log::spawn(DWT::cycle_count(), "Mstr tracked RightMsb, status Left").ok();
+        }
+        if status.chside() == Channel::Left && *frame_state == RightLsb {
+            log::spawn(DWT::cycle_count(), "Mstr tracked RightLsb, status Left").ok();
+        }
+        match *frame_state {
+            LeftMsb => {
                 frame.0 = (data as u32) << 16;
                 *frame_state = LeftLsb;
             }
-            (LeftLsb, Channel::Left) => {
+            LeftLsb => {
                 frame.0 |= data as u32;
                 *frame_state = RightMsb;
             }
-            (RightMsb, Channel::Right) => {
+            RightMsb => {
                 frame.1 = (data as u32) << 16;
                 *frame_state = RightLsb;
             }
-            (RightLsb, Channel::Right) => {
+            RightLsb => {
                 frame.1 |= data as u32;
                 // defer sample processing to another task
                 let (l, r) = *frame;
@@ -381,18 +375,11 @@ fn _master_receive_32bits_interrupt<I: I2sPeripheral>(
                 }
                 *frame_state = LeftMsb;
             }
-            // in case of ovr this resynchronize at start of new frame
-            _ => {
-                log::spawn(DWT::cycle_count(), "Master Receive Channel Err").ok();
-                *frame_state = LeftMsb;
-            }
         }
     }
     if status.ovr() {
         log::spawn(DWT::cycle_count(), "Master Receive Overrun").ok();
-        // sequence to delete ovr flag
-        driver.read_data_register();
-        driver.status();
+        driver.reset_clocks();
     }
 }
 
@@ -467,7 +454,6 @@ impl DriverWrap<I2s3> {
                 ws_pin.clear_interrupt_pending_bit();
                 if ws_pin.is_high() {
                     ws_pin.disable_interrupt(exti);
-                    i2s3_driver.write_data_register(0);
                     i2s3_driver.enable();
                 }
             }
@@ -476,7 +462,6 @@ impl DriverWrap<I2s3> {
                 ws_pin.clear_interrupt_pending_bit();
                 if ws_pin.is_high() {
                     ws_pin.disable_interrupt(exti);
-                    i2s3_driver.write_data_register(0);
                     i2s3_driver.enable();
                 }
             }
