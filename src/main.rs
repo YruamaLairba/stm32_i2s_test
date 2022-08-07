@@ -28,7 +28,8 @@ mod app {
 
     use core::fmt::Write;
 
-    use hal::gpio::Edge;
+    use hal::gpio::Alternate;
+    use hal::gpio::{Edge, Speed};
     use hal::gpio::{NoPin, Pin};
     use hal::i2s::stm32_i2s_v12x::driver::*;
     use hal::i2s::I2s;
@@ -68,12 +69,20 @@ mod app {
         SPI2,
         (
             Pin<'B', 12_u8>,
-            Pin<'B', 13_u8>,
+            Pin<'B', 13_u8, Alternate<5_u8>>,
             Pin<'C', 6_u8>,
             Pin<'B', 15_u8>,
         ),
     >;
-    pub type I2s3 = I2s<SPI3, (Pin<'A', 4_u8>, Pin<'C', 10_u8>, NoPin, Pin<'C', 12_u8>)>;
+    pub type I2s3 = I2s<
+        SPI3,
+        (
+            Pin<'A', 4_u8>,
+            Pin<'C', 10_u8, Alternate<6_u8>>,
+            NoPin,
+            Pin<'C', 12_u8>,
+        ),
+    >;
 
     #[derive(Copy, Clone)]
     pub enum I2sCtl {
@@ -162,10 +171,16 @@ mod app {
             .i2s_clk(61440.kHz())
             .freeze();
 
+        let mut pb13 = gpiob.pb13.into_alternate::<5>();
+        let mut pc10 = gpioc.pc10.into_alternate::<6>();
+
+        pb13.set_speed(Speed::VeryHigh); //CK
+        pc10.set_speed(Speed::VeryHigh); //CK
+
         // I2S pins: (WS, CK, MCLK, SD) for I2S2
         let mut i2s2_pins = (
             gpiob.pb12, //WS
-            gpiob.pb13, //CK
+            pb13,       //CK
             gpioc.pc6,  //MCK
             gpiob.pb15, //SD
         );
@@ -175,7 +190,7 @@ mod app {
         let i2s2 = Some(I2s::new(device.SPI2, i2s2_pins, &clocks));
 
         // I2S3 pins: (WS, CK, NoPin, SD) for I2S3
-        let mut i2s3_pins = (gpioa.pa4, gpioc.pc10, NoPin, gpioc.pc12);
+        let mut i2s3_pins = (gpioa.pa4, pc10, NoPin, gpioc.pc12);
         // set up an interrupt on WS pin
         i2s3_pins.0.make_interrupt_source(&mut syscfg);
         i2s3_pins.0.trigger_on_edge(&mut exti, Edge::Rising);
