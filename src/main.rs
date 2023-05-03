@@ -28,9 +28,8 @@ mod app {
 
     use core::fmt::Write;
 
-    use hal::gpio::Alternate;
+    use hal::gpio::NoPin;
     use hal::gpio::{Edge, Speed};
-    use hal::gpio::{NoPin, Pin};
     use hal::i2s::stm32_i2s_v12x::driver::*;
     use hal::i2s::I2s;
     #[allow(unused)]
@@ -65,24 +64,8 @@ mod app {
         Slave(I2sDriver<I, Slave, Receive, STD>),
     }
 
-    pub type I2s2 = I2s<
-        SPI2,
-        (
-            Pin<'B', 12_u8>,
-            Pin<'B', 13_u8, Alternate<5_u8>>,
-            Pin<'C', 6_u8>,
-            Pin<'B', 15_u8>,
-        ),
-    >;
-    pub type I2s3 = I2s<
-        SPI3,
-        (
-            Pin<'A', 4_u8>,
-            Pin<'C', 10_u8, Alternate<6_u8>>,
-            NoPin,
-            Pin<'C', 12_u8>,
-        ),
-    >;
+    pub type I2s2 = I2s<SPI2>;
+    pub type I2s3 = I2s<SPI3>;
 
     #[derive(Copy, Clone)]
     pub enum I2sCtl {
@@ -190,7 +173,7 @@ mod app {
         let i2s2 = Some(I2s::new(device.SPI2, i2s2_pins, &clocks));
 
         // I2S3 pins: (WS, CK, NoPin, SD) for I2S3
-        let mut i2s3_pins = (gpioa.pa4, pc10, NoPin, gpioc.pc12);
+        let mut i2s3_pins = (gpioa.pa4, pc10, NoPin::new(), gpioc.pc12);
         // set up an interrupt on WS pin
         i2s3_pins.0.make_interrupt_source(&mut syscfg);
         i2s3_pins.0.trigger_on_edge(&mut exti, Edge::Rising);
